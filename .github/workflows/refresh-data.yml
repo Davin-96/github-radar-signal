@@ -1,0 +1,63 @@
+name: Refresh radar data
+
+# 每 6 小时抓取一次 Trending + GitHub Search，生成 assets/live.json。
+# 也支持在 Actions 页面手动触发（workflow_dispatch）。
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Fetch live data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/fetch_live.py
+
+      - name: Validate live.json
+        run: |
+          python - <<'PY'
+          import json, sys
+          d = json.load(open('assets/live.json', encoding='utf-8'))
+          need = ['trending_daily', 'trending_weekly', 'top_stars', 'newest']
+          for k in need:
+              if not isinstance(d.get(k), list) or len(d[k]) < 3:
+                  print(f'INVALID: {k}')
+                  sys.exit(1)
+          if not isinstance(d.get('categories'), dict) or len(d['categories']) < 5:
+              print('INVALID: categories')
+              sys.exit(1)
+          print('VALID live.json:', d['updated_at'],
+                '| daily', len(d['trending_daily']),
+                '| weekly', len(d['trending_weekly']))
+          PY
+
+      - name: Commit live.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/live.json scripts/translated.json
+          if git diff --cached --quiet; then
+            echo "No data changes, skip commit."
+          else
+            git commit -m "chore(data): refresh radar data $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push
+          fi

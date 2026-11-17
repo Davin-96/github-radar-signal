@@ -1,0 +1,23 @@
+{
+ ":books: Find your next book to read!": ":books: 找到您下一本要读的书！",
+ "A curated list of awesome social engineering resources.": "精心整理的精彩社交工程资源清单。",
+ "AG-UI: the Agent-User Interaction Protocol. Bring Agents into Frontend Applications.": "AG-UI：代理与用户交互协议。将代理引入前端应用程序。",
+ "An auto-evolution framework that optimizes anything — your 7×24 team of algorithm engineers.": "一个能够优化一切的自动进化框架——您的全天候算法工程师团队。",
+ "Awesome papers involving LLMs in Social Science.": "涉及社会科学领域大语言模型的优秀论文。",
+ "Create behavioral experiments in a browser using JavaScript": "使用 JavaScript 在浏览器中创建行为实验",
+ "EyeLoop is a Python 3-based eye-tracker tailored specifically to dynamic, closed-loop experiments on consumer-grade hardware.": "EyeLoop是一款基于Python 3的眼动追踪器，专为在消费级硬件上进行动态闭环实验而量身定制。",
+ "For running psychology and neuroscience experiments": "用于开展心理学和神经科学实验",
+ "List of awesome RSS channels related to startup, science and technology.": "与初创企业、科技相关的精彩 RSS 频道列表。",
+ "Model Context Protocol for connecting AI assistants to data sources": "用于将 AI 助手连接到数据源的模型上下文协议",
+ "Open-source Flutter habit tracker with smart scoring, WebDAV sync, local-first storage, privacy-focused design, and support for Android, iOS, Windows, macOS, and Linux.": "一款开源的 Flutter 习惯跟踪器，具备智能评分、WebDAV 同步、本地优先存储、注重隐私的设计，并支持 Android、iOS、Windows、macOS 和 Linux。",
+ "The Open Source Memory Layer For Autonomous Agents": "面向自主代理的开源记忆层",
+ "The workspace to stay in the loop and on top of agents": "用于随时掌握最新情况并了解客服代表工作动态的工作台",
+ "Turns corrections into Preferences, Project-specific skills, and Shared skills for Claude Code, Codex, and OpenCode.": "将更正转换为偏好、项目特定技能以及适用于 Claude Code、Codex 和 OpenCode 的共享技能。",
+ "papaja (Preparing APA Journal Articles) is an R package that provides document formats to produce complete APA manuscripts from RMarkdown-files (PDF and Word documents) and helper functions that facilitate reporting statistics, tables, and plots.": "papaja（Preparing APA Journal Articles，即“撰写 APA 期刊文章”）是一个 R 软件包，提供用于从 RMarkdown 文件（PDF 和 Word 文档）生成完整 APA 手稿的文档格式，以及用于帮助报告统计数据、表格和图表的辅助函数。",
+ "❤️Emotional First Aid Dataset, 心理咨询问答、聊天机器人语料库": "❤️情绪急救数据集、心理咨询问答、聊天机器人语料库",
+ "一个先接住情绪、再分析关系并给出可执行策略的 Codex 恋爱军师，内置心理、法律、社会、人文、哲学、婚姻家庭与性学知识库，支持多元关系。": "一个先接住情绪、再分析关系并给出可执行策略的Codex恋爱军师，内置心理、法律、社会、人文、哲学、婚姻家庭与性学知识库，支持多元关系。",
+ "中文领域心理健康对话大模型SoulChat": "中文领域心理健康对话大模型 SoulChat",
+ "🐝  The First Self-Improving agents with RL / Prompting Optimization": "🐝  首个采用强化学习/提示优化技术的自我改进型代理",
+ "📌 Personal Kanban Board is an agile project management tool that helps you visualise your work, limit your work-in-progress (WIP) and to craft & optimise your work flow to get the maximum output. To achieve this, it makes use of columns and cards. Personal Kanban offers visual clue, columns, WIP limits, start point and end point to set you up for success.": "📌 个人看板是一种敏捷项目管理工具，可帮助您可视化工作、限制在制品 (WIP) 以及设计和优化工作流程，以获得最大产出。为了实现这一目标，它使用了列和卡片。个人看板提供可视化线索、列、WIP 限制、起点和终点，为您奠定成功的基础。",
+ "🔬 A curated collection of 23,000+ agent skills for empirical research across 8 social science disciplines. | 精选 23,000+ AI Agent 技能库，覆盖8大社会科学学科的实证研究。CoPaper.AI 20分钟完成一篇可复现的规范实证论文，并支持用户上传 Skills。-- Maintained by CoPaper.AI from Stanford REAP.": "🔬 精选 23,000+ AI Agent 技能库，覆盖8大社会科学学科的实证研究。| 精选 23,000+ AI Agent 技能库，覆盖 8 大社会科学学科的实证研究。CoPaper.AI 20分钟完成一篇可复现的规范实证论文，并支持用户上传技能。-- 由斯坦福大学 REAP 的 CoPaper.AI 维护。"
+}

@@ -541,28 +541,37 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeChart();const 
 window.addEventListener("scroll",()=>{const h=$("#hoverChart");if(h&&h.classList.contains("show")){h.classList.remove("show");h.setAttribute("aria-hidden","true")}},{passive:true});
 
 function updateStatus(){const st=$("#status"),txt=$("#statusText");if(!st||!txt)return;const m=st.dataset.mode;st.className="status"+(m==="warn"?" warn":"");txt.textContent=m==="live"?t().statusLive:(m==="warn"?t().statusWarn:t().statusSnap)}
-function renderMeta(){const u=(DATA.updated_at||"").replace("T"," ").slice(0,16),ue=$("#updatedAt");if(ue)ue.textContent=t().updated+": "+u;const g=DATA.growth_7d||{},n=Object.keys(g).length,gi=$("#growthInfo");if(gi)gi.textContent=n>0?t().growth(n):t().growth0;$("#status").dataset.mode="snap";updateStatus()}
+function renderMeta(){const u=(DATA.updated_at||"").replace("T"," ").slice(0,16),ue=$("#updatedAt");if(ue)ue.textContent=t().updated+": "+u;const g=DATA.growth_7d||{},n=Object.keys(g).length,gi=$("#growthInfo");if(gi)gi.textContent=n>0?t().growth(n):t().growth0}
 
 const LIVE=/^https?:$/.test(location.protocol)&&!/^(127\.|localhost|0\.0\.0\.0)/.test(location.hostname||"");
-async function ghSearch(q,n=15){const r=await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(q)}&sort=stars&order=desc&per_page=${n}`,{headers:{Accept:"application/vnd.github+json"}});if(!r.ok)throw new Error("gh "+r.status);const j=await r.json();return(j.items||[]).map(it=>({full_name:it.full_name,description:it.description||"",language:it.language||"",stars:it.stargazers_count||0,forks:it.forks_count||0,url:it.html_url,desc_zh:"",topics:(it.topics||[]).slice(0,5)}))}
-const mergeRepos=(a,b)=>{const s=new Set(a.map(r=>r.full_name));return[...a,...b.filter(r=>!s.has(r.full_name))].sort((x,y)=>y.stars-x.stars).slice(0,25)};
 function toast(msg){const b=$("#liveBar");b.textContent=msg;b.style.display="block"}
-async function liveRefresh(manual=false){const btn=$("#refreshBtn");if(btn)btn.disabled=true;
-  try{toast(LANG==="zh"?"⚡ 正在从 GitHub 实时刷新…":"⚡ Refreshing from GitHub…");
-    const since=new Date(Date.now()-14*864e5).toISOString().slice(0,10);
-    const[top,newest,texts,ai,dev,life,fin]=await Promise.all([
-      ghSearch("stars:>10000",25),ghSearch(`created:>${since} stars:>50`,25),
-      ghSearch("topic:awesome stars:>500",15).then(a=>ghSearch("topic:tutorial stars:>500",15).then(b=>mergeRepos(a,b))),
-      ghSearch("topic:ai stars:>500",15).then(a=>ghSearch("topic:llm stars:>500",15).then(b=>mergeRepos(a,b))),
-      ghSearch("topic:developer-tools stars:>500",15).then(a=>ghSearch("topic:cli stars:>500",15).then(b=>mergeRepos(a,b))),
-      ghSearch("topic:psychology stars:>500",15).then(a=>ghSearch("topic:self-improvement stars:>500",15).then(b=>mergeRepos(a,b))),
-      ghSearch("topic:quantitative-finance stars:>500",15).then(a=>ghSearch("topic:trading stars:>500",15).then(b=>mergeRepos(a,b)))]);
-    DATA.top_stars=top;DATA.newest=newest;DATA.categories={texts,ai,dev,life,finance:fin};DATA.updated_at=new Date().toISOString();
-    renderAll();renderRail();renderMeta();$("#status").dataset.mode="live";updateStatus();
-    toast((LANG==="zh"?"⚡ 已实时刷新榜单与分类":"⚡ Refreshed boards & categories")+" · "+new Date().toLocaleTimeString());
+function setStatus(mode){const s=$("#status");if(s)s.dataset.mode=mode;updateStatus()}
+function fmtTime(iso){const u=(iso||"").replace("T"," ").slice(0,16);return u||"--"}
+
+// 从 GitHub Actions 产出的 live.json 拉取数据（同域静态文件，无 GitHub API 限流）
+async function loadLiveData(manual=false){
+  const btn=$("#refreshBtn");if(btn)btn.disabled=true;
+  try{
+    toast(LANG==="zh"?"⚡ 正在拉取实时数据…":"⚡ Loading live data…");
+    const res=await fetch("assets/live.json?t="+Date.now(),{cache:"no-store"});
+    if(!res.ok)throw new Error("live.json HTTP "+res.status);
+    const d=await res.json();
+    if(!d||!d.trending_daily||!d.trending_daily.length)throw new Error("empty live data");
+    // 校验结构完整性，缺项回退快照
+    const need=["trending_daily","trending_weekly","top_stars","newest"];
+    for(const k of need)if(!Array.isArray(d[k]))throw new Error("bad field "+k);
+    Object.assign(DATA,d);
+    renderAll();renderRail();renderMeta();setStatus("live");
+    toast((LANG==="zh"?"⚡ 已更新实时数据":"⚡ Live data loaded")+" · "+fmtTime(DATA.updated_at));
     try{localStorage.setItem("gh_radar_last_live",Date.now())}catch(e){}
-  }catch(e){$("#status").dataset.mode="warn";updateStatus();toast(LANG==="zh"?"⚡ 实时刷新未成功（GitHub 限额？），当前显示本地快照":"⚡ Live refresh failed (rate limit?), showing local snapshot")}
-  finally{if(btn)btn.disabled=false;setTimeout(()=>{const b=$("#liveBar");if(b)b.style.display="none"},manual?5000:4000)}}
+    return true;
+  }catch(e){
+    setStatus(LIVE?"warn":"snap");
+    toast(LANG==="zh"?"⚡ 实时数据不可用，当前显示内嵌快照":"⚡ Live data unavailable, showing embedded snapshot");
+    return false;
+  }finally{if(btn)btn.disabled=false;setTimeout(()=>{const b=$("#liveBar");if(b)b.style.display="none"},manual?5000:4000)}
+}
+const liveRefresh=loadLiveData;
 
 function init(){
   try{LANG=localStorage.getItem("gh_radar_lang")||"zh"}catch(e){}
@@ -570,9 +579,11 @@ function init(){
   let saved=null;try{saved=localStorage.getItem("gh_radar_theme")}catch(e){}
   const systemDark=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;
   setTheme(saved||(systemDark?"dark":"light"),false);
-  applyI18n();renderMeta();renderRail();renderAll();
+  applyI18n();renderMeta();renderRail();renderAll();setStatus("snap");
   if(LIVE){let last=0;try{last=+localStorage.getItem("gh_radar_last_live")||0}catch(e){}
-    if(Date.now()-last>3*3600*1000)setTimeout(()=>liveRefresh(false),1200);else{$("#status").dataset.mode="snap";updateStatus()}}
+    if(Date.now()-last>6*3600*1000)setTimeout(()=>loadLiveData(false),1200);
+    else setTimeout(()=>loadLiveData(false),600);
+  }
 }
 document.addEventListener("DOMContentLoaded",init);
 </script>
