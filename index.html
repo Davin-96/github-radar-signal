@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0f1a">
+<meta name="description" content="GitHub 资源雷达 — 追踪星标飙升、热门趋势与优质开源项目的工作台式数据面板">
+<title>GitHub 资源雷达 · Signal</title>
+<style>
+/* ============================================================
+   THEME TOKENS — 主题即一组 CSS 变量覆盖（astryx 思路）
+   ============================================================ */
+:root{
+  --radius:16px; --grid-unit:4px;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI","PingFang SC","Microsoft YaHei",Roboto,sans-serif;
+  --mono:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --ease-spring:cubic-bezier(.34,1.4,.5,1);
+  --ease-out:cubic-bezier(.22,.61,.36,1);
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0a0f1a; --bg-2:#0d1422;
+  --orb-1:#114a63; --orb-2:#2c2160; --orb-3:#0b4a4a;
+  --grid-line:rgba(130,165,220,.05);
+  --ink:#eef4ff; --ink-2:#d0dcf0; --muted:#9babca; --dim:#6a7e9f;
+  --accent:#4fd8d2; --accent-2:#6fb3ff; --accent-3:#b39bff;
+  --gold:#ffcc70; --rose:#ff7d95; --green:#5fe0a0;
+  --glass-bg:rgba(22,32,52,.52); --glass-bg-2:rgba(28,40,64,.42);
+  --glass-blur:22px; --glass-sat:1.5;
+  --stroke:rgba(160,192,240,.16); --stroke-hi:rgba(180,210,255,.30);
+  --hi-top:rgba(255,255,255,.22); --hi-left:rgba(255,255,255,.10);
+  --thick-dark:rgba(0,0,0,.42); --edge-bottom:rgba(0,0,0,.30);
+  --shadow:0 18px 44px rgba(0,0,0,.42);
+  --chip-bg:rgba(150,185,235,.10); --chip-active-ink:#06121b;
+  --track:rgba(150,185,235,.12);
+  --hl-zh-bg:rgba(79,216,210,.075); --hl-zh-bar:rgba(79,216,210,.85);
+  --hl-delta-bg:rgba(255,125,149,.13);
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#e9eef6; --bg-2:#f3f6fb;
+  --orb-1:#a9dfe4; --orb-2:#c9c2f2; --orb-3:#bfe6da;
+  --grid-line:rgba(40,70,120,.055);
+  --ink:#16233a; --ink-2:#2b3c56; --muted:#566984; --dim:#8494ad;
+  --accent:#0f9e9a; --accent-2:#2f7fe0; --accent-3:#7c5cd6;
+  --gold:#c07e0a; --rose:#cf3f5f; --green:#12845a;
+  --glass-bg:rgba(255,255,255,.6); --glass-bg-2:rgba(255,255,255,.44);
+  --glass-blur:26px; --glass-sat:1.7;
+  --stroke:rgba(255,255,255,.78); --stroke-hi:rgba(255,255,255,.98);
+  --hi-top:rgba(255,255,255,.94); --hi-left:rgba(255,255,255,.58);
+  --thick-dark:rgba(28,45,80,.16); --edge-bottom:rgba(28,45,80,.14);
+  --shadow:0 16px 40px rgba(28,48,84,.15);
+  --chip-bg:rgba(255,255,255,.55); --chip-active-ink:#fff;
+  --track:rgba(30,60,110,.10);
+  --hl-zh-bg:rgba(15,158,154,.075); --hl-zh-bar:rgba(15,158,154,.9);
+  --hl-delta-bg:rgba(207,63,95,.09);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--font); background:var(--bg); color:var(--ink);
+  font-size:15px; line-height:1.55; min-height:100vh; overflow-x:hidden;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  transition:background .45s var(--ease-out),color .45s var(--ease-out);
+}
+.bg-fx{position:fixed;inset:0;z-index:-2;overflow:hidden;pointer-events:none}
+.orb{position:absolute;border-radius:50%;filter:blur(96px);opacity:.55;will-change:transform}
+.orb.a{width:540px;height:540px;background:radial-gradient(circle,var(--orb-1),transparent 68%);top:-170px;left:-130px;animation:drift1 26s ease-in-out infinite}
+.orb.b{width:580px;height:580px;background:radial-gradient(circle,var(--orb-2),transparent 68%);top:-90px;right:-170px;animation:drift2 32s ease-in-out infinite}
+.orb.c{width:500px;height:500px;background:radial-gradient(circle,var(--orb-3),transparent 70%);bottom:-210px;left:34%;animation:drift3 38s ease-in-out infinite}
+.grid-fx{position:absolute;inset:0;background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(ellipse 82% 62% at 50% 0%,#000 38%,transparent 100%)}
+@keyframes drift1{0%,100%{transform:translate(0,0)}50%{transform:translate(80px,60px)}}
+@keyframes drift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-70px,80px)}}
+@keyframes drift3{0%,100%{transform:translate(0,0)}50%{transform:translate(60px,-70px)}}
+
+/* GLASS MATERIAL */
+.g{
+  position:relative;
+  background:linear-gradient(155deg,var(--glass-bg),var(--glass-bg-2));
+  border:1px solid var(--stroke);
+  border-radius:var(--radius);
+  -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));
+  box-shadow:inset 0 1px 0 var(--hi-top),inset 1px 0 0 var(--hi-left),inset 0 -1px 0 var(--edge-bottom),0 1px 0 var(--thick-dark),var(--shadow);
+}
+.g::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(180deg,var(--hi-left),transparent 22%);opacity:.5}
+.wrap{max-width:1340px;margin:0 auto;padding:0 28px}
+
+/* top nav */
+header{position:sticky;top:0;z-index:50;padding:10px 0}
+.navbar{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  padding:11px 18px;border-radius:calc(var(--radius) + 2px);
+  background:linear-gradient(160deg,var(--glass-bg),var(--glass-bg-2));
+  border:1px solid var(--stroke);
+  -webkit-backdrop-filter:blur(28px) saturate(var(--glass-sat));backdrop-filter:blur(28px) saturate(var(--glass-sat));
+  box-shadow:inset 0 1px 0 var(--hi-top),inset 0 -1px 0 var(--edge-bottom),var(--shadow);
+}
+.brand{display:flex;align-items:center;gap:11px}
+.brand-mark{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;
+  background:linear-gradient(145deg,rgba(79,216,210,.24),rgba(111,179,255,.14));
+  border:1px solid rgba(79,216,210,.38);box-shadow:inset 0 1px 0 var(--hi-top),0 0 20px rgba(79,216,210,.18)}
+.brand-mark svg{width:21px;height:21px}
+.brand h1{font-size:17px;font-weight:650;letter-spacing:.3px}
+.brand h1 span{color:var(--accent)}
+.nav-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.status{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11.5px;color:var(--muted);padding:0 6px}
+.status .pulse{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(95,224,160,.6);animation:pulse 2.4s infinite}
+.status.warn .pulse{background:var(--gold);animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(95,224,160,.5)}70%{box-shadow:0 0 0 9px rgba(95,224,160,0)}100%{box-shadow:0 0 0 0 rgba(95,224,160,0)}}
+.btn{
+  font-family:var(--font);font-size:12.5px;color:var(--ink);cursor:pointer;
+  background:var(--chip-bg);border:1px solid var(--stroke);border-radius:999px;
+  padding:7px 14px;display:inline-flex;align-items:center;gap:6px;
+  transition:transform .35s var(--ease-spring),background .2s,border-color .2s;white-space:nowrap;
+  box-shadow:inset 0 1px 0 var(--hi-top);text-decoration:none;
+}
+.btn:hover{background:var(--stroke);border-color:var(--stroke-hi);transform:translateY(-2px)}
+.btn:active{transform:translateY(0)}
+.btn:disabled{opacity:.5;cursor:wait}
+
+/* hero 压缩为横向条 */
+.hero{display:grid;grid-template-columns:1.15fr .85fr;gap:24px;align-items:center;padding:16px 0 14px}
+@media(max-width:920px){.hero{grid-template-columns:1fr;gap:8px}}
+.hero-copy{padding:4px 4px}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:1.6px;text-transform:uppercase;margin-bottom:9px}
+.eyebrow::before{content:"";width:22px;height:1px;background:linear-gradient(90deg,var(--accent),transparent)}
+.hero h2{font-size:clamp(28px,3.8vw,44px);line-height:1.1;font-weight:700;letter-spacing:-.6px;margin-bottom:9px}
+.hero h2 em{font-style:normal;background:linear-gradient(120deg,var(--accent),var(--accent-2) 55%,var(--accent-3));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--muted);font-size:14.5px;max-width:600px;line-height:1.7}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+@media(max-width:720px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{padding:14px 15px;border-radius:14px;min-height:88px;display:flex;flex-direction:column;justify-content:space-between}
+.kpi::after{content:"";position:absolute;top:14px;left:0;width:2px;height:26px;border-radius:2px;background:linear-gradient(180deg,var(--accent),transparent)}
+.kpi .k-label{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.kpi .k-val{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-.5px;line-height:1.1}
+.kpi .k-val small{font-size:11px;color:var(--dim);font-weight:400;margin-left:3px;font-family:var(--font)}
+
+/* ===== WORKBENCH: 左侧分栏导航 + 右侧大主区 ===== */
+.workbench{display:grid;grid-template-columns:224px 1fr;gap:18px;align-items:stretch;margin-top:6px}
+@media(max-width:900px){.workbench{grid-template-columns:1fr}}
+.rail{padding:14px 12px;display:flex;flex-direction:column;gap:16px;align-self:start}
+@media(max-width:900px){.rail{gap:10px}}
+.rail-group{display:flex;flex-direction:column;gap:5px}
+@media(max-width:900px){.rail-group{flex-direction:row;flex-wrap:wrap;gap:6px;align-items:center}}
+.rail-label{font-family:var(--mono);font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);padding:2px 10px 6px;display:flex;align-items:center;gap:8px}
+.rail-label::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--stroke),transparent)}
+.rail-item{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;cursor:pointer;
+  font-family:var(--font);font-size:13.5px;color:var(--ink-2);
+  padding:10px 12px;border-radius:12px;border:1px solid transparent;background:transparent;
+  transition:transform .35s var(--ease-spring),background .2s,border-color .2s,color .2s;
+}
+.rail-item:hover{background:var(--chip-bg);transform:translateX(2px);color:var(--ink)}
+.rail-item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.rail-item.active{
+  color:var(--ink);font-weight:600;border-color:var(--stroke-hi);
+  background:linear-gradient(135deg,color-mix(in srgb,var(--rc) 20%,transparent),var(--chip-bg));
+  box-shadow:inset 0 1px 0 var(--hi-top),0 6px 16px rgba(0,0,0,.12);
+}
+.rail-item.active::before{content:"";position:absolute;left:0;width:3px;height:22px;border-radius:3px;background:var(--rc);box-shadow:0 0 12px var(--rc)}
+.rail-item{position:relative}
+.ri-ic{width:22px;text-align:center;font-size:15px;flex:none;filter:saturate(1.05)}
+.ri-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ri-count{font-family:var(--mono);font-size:11px;color:var(--dim);background:var(--chip-bg);border:1px solid var(--stroke);padding:1px 8px;border-radius:999px}
+.rail-item.active .ri-count{color:var(--ink);border-color:var(--stroke-hi)}
+
+/* stage */
+.stage{display:flex;flex-direction:column;min-height:0}
+.stage-head{display:flex;align-items:center;gap:14px;padding:15px 20px;border-bottom:1px solid var(--stroke);background:linear-gradient(180deg,rgba(127,160,210,.05),transparent)}
+.stage-icon{width:42px;height:42px;flex:none;border-radius:12px;display:grid;place-items:center;font-size:21px;
+  background:var(--chip-bg);border:1px solid var(--stroke);box-shadow:inset 0 1px 0 var(--hi-top)}
+.stage-title h2{font-size:20px;font-weight:680;letter-spacing:-.2px;line-height:1.2}
+.stage-title p{font-size:12.5px;color:var(--muted);margin-top:2px}
+.stage-count{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted);background:var(--chip-bg);border:1px solid var(--stroke);padding:5px 12px;border-radius:999px;white-space:nowrap}
+.stage-list{padding:16px;display:grid;grid-template-columns:repeat(2,1fr);grid-auto-rows:max-content;gap:12px;align-content:start}
+@media(max-width:1180px){.stage-list{grid-template-columns:1fr}}
+.stage-list .empty{color:var(--dim);padding:40px;text-align:center;grid-column:1/-1}
+
+/* repo 大卡片 — 字体分区 + 高亮 */
+.repo-card{
+  display:grid;grid-template-columns:38px 1fr;gap:12px;padding:15px 16px;cursor:pointer;
+  border:1px solid var(--stroke);border-radius:14px;
+  background:linear-gradient(150deg,var(--glass-bg-2),transparent);
+  transition:transform .35s var(--ease-spring),border-color .2s,background .2s,box-shadow .2s;
+  min-height:132px;
+}
+.repo-card:hover{transform:translateY(-3px);border-color:var(--stroke-hi);box-shadow:inset 0 1px 0 var(--hi-top),0 12px 26px rgba(0,0,0,.18)}
+.repo-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.rc-rank{font-family:var(--mono);font-size:15px;color:var(--dim);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;font-weight:600}
+.repo-card:nth-child(-n+3) .rc-rank{color:var(--gold)}
+.rc-main{min-width:0}
+.rc-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.rc-name{color:var(--accent-2);font-size:15px;font-weight:650;text-decoration:none;letter-spacing:.1px}
+.rc-name:hover{color:var(--accent);text-decoration:underline}
+.rc-stars{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--gold);font-variant-numeric:tabular-nums}
+.rc-line2{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:6px;min-height:20px}
+.rc-delta{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--rose);background:var(--hl-delta-bg);border:1px solid color-mix(in srgb,var(--rose) 28%,transparent);padding:2px 9px;border-radius:7px;font-variant-numeric:tabular-nums}
+.rc-tag{font-size:11.5px;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 32%,transparent);background:color-mix(in srgb,var(--accent) 8%,transparent);padding:2px 9px;border-radius:7px;font-weight:600}
+.rc-desc-en{color:var(--muted);font-size:12.5px;margin-top:7px;line-height:1.55;max-height:39px;overflow:hidden}
+.rc-desc-zh{
+  color:var(--ink-2);font-size:13.5px;line-height:1.55;margin-top:8px;
+  padding:6px 11px;border-left:3px solid var(--hl-zh-bar);border-radius:0 8px 8px 0;
+  background:var(--hl-zh-bg);
+  max-height:54px;overflow:hidden;
+}
+.rc-meta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:9px;font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+.rc-lang{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2)}
+.rc-lang i{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--lc);box-shadow:0 0 8px var(--lc)}
+.rc-topic{color:var(--dim)}
+.rc-topic:hover{color:var(--accent-3)}
+
+/* 趋势图浮层 */
+.modal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:24px;visibility:hidden;opacity:0;transition:opacity .3s var(--ease-out),visibility .3s}
+.modal.open{visibility:visible;opacity:1}
+.modal-backdrop{position:absolute;inset:0;background:rgba(4,8,16,.62);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.modal-card{position:relative;width:min(960px,100%);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;
+  transform:translateY(18px) scale(.98);transition:transform .4s var(--ease-spring)}
+.modal.open .modal-card{transform:none}
+.modal-head{display:flex;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid var(--stroke);background:linear-gradient(180deg,rgba(127,160,210,.05),transparent)}
+.modal-title{display:flex;align-items:center;gap:10px;min-width:0}
+.modal-title svg{width:20px;height:20px;flex:none;color:var(--accent)}
+.modal-title span{font-family:var(--mono);font-size:15px;color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.modal-actions{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none}
+/* 弹层顶部项目简介 */
+.modal-info{padding:18px 20px 16px;border-bottom:1px solid var(--stroke);background:linear-gradient(180deg,rgba(127,160,210,.045),transparent)}
+.mi-top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.mi-name{font-size:19px;font-weight:700;color:var(--ink);letter-spacing:-.2px}
+.mi-link{font-family:var(--mono);font-size:12px;color:var(--accent-2);text-decoration:none}
+.mi-link:hover{color:var(--accent);text-decoration:underline}
+.mi-stats{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-left:auto;font-family:var(--mono);font-size:12.5px}
+.mi-stats .s-star{color:var(--gold);font-weight:600;font-variant-numeric:tabular-nums}
+.mi-stats .s-fork{color:var(--accent-2);font-variant-numeric:tabular-nums}
+.mi-stats .s-lang{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2)}
+.mi-stats .s-lang i{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--lc);box-shadow:0 0 8px var(--lc)}
+.mi-desc-zh{color:var(--ink-2);font-size:14px;line-height:1.7;padding:9px 13px;border-left:3px solid var(--hl-zh-bar);border-radius:0 9px 9px 0;background:var(--hl-zh-bg);margin-bottom:9px}
+.mi-desc-en{color:var(--muted);font-size:13px;line-height:1.65}
+.mi-tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.mi-tags .mi-tag{font-size:11.5px;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);background:color-mix(in srgb,var(--accent) 8%,transparent);padding:3px 10px;border-radius:7px;font-weight:600}
+.mi-tags .mi-topic{font-family:var(--mono);font-size:11.5px;color:var(--dim);background:var(--chip-bg);border:1px solid var(--stroke);padding:3px 10px;border-radius:7px}
+.mi-empty{color:var(--dim);font-size:13px;font-style:italic}
+
+.modal-body{padding:18px;overflow:auto;min-height:120px}
+.chart-frame{border:1px solid var(--stroke);border-radius:12px;overflow:hidden;display:grid;place-items:center;min-height:300px;background:var(--glass-bg-2)}
+.chart-img{width:100%;height:auto;display:block}
+:root[data-theme="dark"] .chart-img{filter:invert(1) hue-rotate(180deg)}
+.chart-placeholder{color:var(--dim);font-size:13px;padding:40px}
+.chart-err{color:var(--muted);text-align:center;padding:44px;font-size:13px}
+
+/* 悬浮趋势图预览（hover 仓库名触发） */
+.hover-chart{
+  position:fixed;z-index:80;width:430px;max-width:calc(100vw - 32px);pointer-events:none;
+  padding:12px;border-radius:14px;
+  background:linear-gradient(155deg,var(--glass-bg),var(--glass-bg-2));
+  border:1px solid var(--stroke-hi);
+  -webkit-backdrop-filter:blur(26px) saturate(var(--glass-sat));backdrop-filter:blur(26px) saturate(var(--glass-sat));
+  box-shadow:inset 0 1px 0 var(--hi-top),inset 0 -1px 0 var(--edge-bottom),0 20px 48px rgba(0,0,0,.42);
+  opacity:0;visibility:hidden;transform:translateY(8px) scale(.97);
+  transition:opacity .18s var(--ease-out),transform .28s var(--ease-spring),visibility .18s;
+}
+.hover-chart.show{opacity:1;visibility:visible;transform:none}
+.hc-head{display:flex;align-items:center;gap:8px;margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid var(--stroke)}
+.hc-name{font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.hc-hint{font-family:var(--mono);font-size:10px;color:var(--dim);white-space:nowrap}
+.hc-body{min-height:64px;display:grid;place-items:center}
+.hc-body .chart-img{width:100%;height:auto;display:block}
+:root[data-theme="dark"] .hc-body .chart-img{filter:invert(1) hue-rotate(180deg)}
+.hc-loading{font-size:12px;color:var(--dim);padding:24px 10px;text-align:center}
+
+#liveBar{display:none;position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:60;font-family:var(--mono);font-size:12px;color:var(--accent);padding:10px 18px;border-radius:999px;background:var(--glass-bg);border:1px solid var(--stroke-hi);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);box-shadow:var(--shadow);white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+footer{text-align:center;color:var(--dim);font-size:12px;padding:26px 20px 34px;line-height:1.9}
+footer a{color:var(--muted);text-decoration:none}
+footer a:hover{color:var(--accent)}
+footer .sep{margin:0 7px;opacity:.5}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--track);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:var(--stroke-hi);background-clip:padding-box}
+.fade-in{animation:fade .6s var(--ease-out) both}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="bg-fx"><div class="grid-fx"></div><div class="orb a"></div><div class="orb b"></div><div class="orb c"></div></div>
+
+<header>
+  <div class="wrap">
+    <div class="navbar">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="url(#bg)" stroke-width="1.8">
+            <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent-2)"/></linearGradient></defs>
+            <circle cx="12" cy="12" r="9" opacity=".35"/><circle cx="12" cy="12" r="5" opacity=".6"/>
+            <circle cx="12" cy="12" r="1.6" class="dotmark" stroke="none"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h1>GitHub 资源雷达<span>_</span></h1>
+      </div>
+      <div class="nav-right">
+        <div class="status" id="status"><span class="pulse"></span><span id="statusText">本地快照</span></div>
+        <button class="btn" id="themeBtn" onclick="toggleTheme()" aria-label="切换明暗主题">◐ 主题</button>
+        <button class="btn" id="langBtn" onclick="toggleLang()" aria-label="切换语言">🌐 中文</button>
+        <button class="btn" id="refreshBtn" onclick="liveRefresh(true)" aria-label="刷新数据">↻ 刷新</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div id="liveBar"></div>
+
+<div class="wrap">
+  <section class="hero fade-in">
+    <div class="hero-copy">
+      <div class="eyebrow" id="eyebrow">OPEN SOURCE INTELLIGENCE</div>
+      <h2 id="heroTitle">捕捉 GitHub 上的<br><em>每一次星标跃迁</em></h2>
+      <p id="heroDesc">左侧切换榜单与分类，右侧大屏浏览；点击任意仓库即可查看它的成长轨迹。数据联网自动刷新。</p>
+    </div>
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <div class="workbench fade-in">
+    <aside class="rail g" id="rail"></aside>
+    <main class="stage g">
+      <div class="stage-head">
+        <div class="stage-icon" id="stageIcon">⚡</div>
+        <div class="stage-title"><h2 id="stageTitle">星标飙升榜</h2><p id="stageSub">今日趋势</p></div>
+        <span class="stage-count" id="stageCount">—</span>
+      </div>
+      <div class="stage-list" id="stageList"></div>
+    </main>
+  </div>
+</div>
+
+<!-- 仓库名悬浮趋势图预览 -->
+<div class="hover-chart" id="hoverChart" aria-hidden="true">
+  <div class="hc-head"><span class="hc-name" id="hcName"></span><span class="hc-hint">STAR HISTORY ↗</span></div>
+  <div class="hc-body" id="hcBody"></div>
+</div>
+
+<footer>
+  <div>数据源：GitHub Trending · GitHub Search API · star-history.com <span class="sep">/</span> <span id="updatedAt">—</span></div>
+  <div id="growthInfo"></div>
+  <div style="margin-top:6px;opacity:.7">GitHub 资源雷达 · 工作台重制版 <span class="sep">·</span> <a href="https://github.com" target="_blank" rel="noopener">Explore GitHub</a></div>
+</footer>
+
+<!-- 趋势图浮层 -->
+<div class="modal" id="chartModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="chartRepo">
+  <div class="modal-backdrop" onclick="closeChart()"></div>
+  <div class="modal-card g">
+    <div class="modal-head">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span id="chartRepo">—</span>
+      </div>
+      <div class="modal-actions">
+        <a class="btn" id="chartOpen" href="#" target="_blank" rel="noopener">↗ <span data-i="chartOpen">新标签打开</span></a>
+        <button class="btn" onclick="closeChart()" aria-label="关闭">✕</button>
+      </div>
+    </div>
+    <div class="modal-info" id="modalInfo"></div>
+    <div class="modal-body" id="chartBody"></div>
+  </div>
+</div>
+
+<script>
+/* ==== EMBEDDED DATA ==== */
+const DATA = {"updated_at":"2026-11-17T14:30:01+08:00","source":"ok","trending_daily":[{"full_name":"ag-ui-protocol/ag-ui","description":"AG-UI: the Agent-User Interaction Protocol. Bring Agents into Frontend Applications.","language":"TypeScript","stars":19406,"forks":1998,"period_stars":791,"url":"https://github.com/ag-ui-protocol/ag-ui","desc_zh":"AG-UI：代理与用户交互协议。将代理引入前端应用程序。"},{"full_name":"backnotprop/plannotator","description":"The workspace to stay in the loop and on top of agents - shape, decide, plan, annotate, review code, share with team, and send all feedback to agents with one click.","language":"TypeScript","stars":12752,"forks":1260,"period_stars":696,"url":"https://github.com/backnotprop/plannotator","desc_zh":"用于随时掌握最新动态并掌控代理的工作空间——塑造、决策、规划、注释、审核代码、与团队分享，并一键将所有反馈发送给代理。"},{"full_name":"dream-num/univer","description":"Build your own AI office with Univer Office SDK. Bring editing, calculation, collaboration, and file processing into your product for people and AI agents. Built on an extensible open-source core.","language":"TypeScript","stars":28094,"forks":2552,"period_stars":1828,"url":"https://github.com/dream-num/univer","desc_zh":"使用 Univer Office SDK 构建您自己的 AI 办公套件。将编辑、计算、协作和文件处理功能集成到您的产品中，供人和 AI 代理使用。基于可扩展的开源核心构建。"},{"full_name":"tradermonty/claude-trading-skills","description":"Claude Code skills for equity investors and traders — market analysis, technical charting, economic calendars, screeners, and trading strategy development.","language":"Python","stars":6520,"forks":1369,"period_stars":837,"url":"https://github.com/tradermonty/claude-trading-skills","desc_zh":"面向股票投资者和交易者的 Claude Code 技能——市场分析、技术图表、经济日历、筛选器和交易策略制定。"},{"full_name":"elementalsouls/Claude-BugHunter","description":"A Claude Code skill bundle for bug hunting and external red-team work - 82 skills, 15 slash commands, 681 disclosed-report patterns cur ated across 24 core vuln erability classes, plus enterprise identity + infrastructure attack matrices.","language":"Python","stars":7709,"forks":1203,"period_stars":1094,"url":"https://github.com/elementalsouls/Claude-BugHunter","desc_zh":"一个用于漏洞挖掘和外部红队工作的 Claude Code 技能包——82 项技能、15 个斜杠命令、681 个披露报告模式，涵盖 24 个核心漏洞类别，外加企业身份 + 基础设施攻击矩阵。"},{"full_name":"getarcaneapp/arcane","description":"Modern Docker Management, Designed for Everyone","language":"Go","stars":8898,"forks":445,"period_stars":46,"url":"https://github.com/getarcaneapp/arcane","desc_zh":"面向所有人的现代化Docker管理"},{"full_name":"DeanChensj/jiangshan-map","description":"江山时序 · 中国历史交互地图时间轴 (403 BCE – Present) | Interactive Historical Atlas of China across 18 dynasties, 198 territory snapshots, ancient-to-modern place genealogy &amp; classical poetry routes","language":"JavaScript","stars":7208,"forks":858,"period_stars":288,"url":"https://github.com/DeanChensj/jiangshan-map","desc_zh":"江山时序 · 中国历史交互地图时间轴（公元前403年– 至今）| 跨越18个朝代、198个领土快照、从古代到现代的地名谱系和古典诗歌路线的中国历史交互地图集"},{"full_name":"google-labs-code/stitch-skills","description":"A library of Agent Skills designed to work with the Stitch MCP server. Each skill follows the Agent Skills open st andard, for compatibilit y with coding agents such as Antigravity, Gemini CLI, Claude Code, Cursor.","language":"TypeScript","stars":9822,"forks":1270,"period_stars":529,"url":"https://github.com/google-labs-code/stitch-skills","desc_zh":"一个专为与 Stitch MCP 服务器配合使用的 Agent Skills 库。每项技能均遵循 Agent Skills 开放标准，以便与 Antigravity、Gemini CLI、Claude Code、Cursor 等编码代理兼容。"},{"full_name":"mvanhorn/last30days-skill","description":"AI agent skill that researches any topic across Reddit, X, YouTube, HN, Polymarket, and the web - then synthesizes a grounded summary","language":"Python","stars":68338,"forks":6074,"period_stars":135,"url":"https://github.com/mvanhorn/last30days-skill","desc_zh":"AI 代理技能，可在 Reddit、X、YouTube、HN、Polymarket 和网络上研究任何主题，然后综合形成有事实依据的摘要"},{"full_name":"NVIDIA/SkillEvaluator","description":"Multi-tier framework for evaluating AI agent skills and plugins with quality gates, semantic overlap detection, synthetic evaluation dataset generation, and live agent evaluation that measures how skills affect agent behavior.","language":"Python","stars":2961,"forks":410,"period_stars":873,"url":"https://github.com/NVIDIA/SkillEvaluator","desc_zh":"用于评估 AI 代理技能和插件的多层框架，包括质量关卡、语义重叠检测、合成评估数据集生成以及实时代理评估（衡量技能如何影响代理行为）。"},{"full_name":"alibaba/open-code-review","description":"Secure, fast, efficient, battle-t ested at Alibaba's scale . Hybrid architecture code review tool: deterministic pipelines + LLM Agent, precise line-level comments, built-in multi-language ruleset (NPE, thread-safety, XSS, SQL injection), OpenAI &amp; Anthropic compatible.","language":"Go","stars":53150,"forks":4345,"period_stars":951,"url":"https://github.com/alibaba/open-code-review","desc_zh":"安全、快速、高效，在阿里巴巴的规模下经过实战检验。混合架构代码审查工具：确定性管道 + LLM 代理、精确的行级注释、内置多语言规则集（NPE、线程安全、XSS、SQL 注入），兼容 OpenAI 和 Anthropic。"},{"full_name":"google-research/paper-orchestra","description":"PaperOrchestra is a multi-agent framework for automated AI research paper writing.","language":"Python","stars":1792,"forks":289,"period_stars":313,"url":"https://github.com/google-research/paper-orchestra","desc_zh":"PaperOrchestra 是一个用于自动撰写人工智能研究论文的多智能体框架。"},{"full_name":"ChromeDevTools/chrome-devtools-mcp","description":"Chrome DevTools for coding agents","language":"TypeScript","stars":57806,"forks":4857,"period_stars":841,"url":"https://github.com/ChromeDevTools/chrome-devtools-mcp","desc_zh":"适用于编码代理的 Chrome DevTools"},{"full_name":"sveltejs/svelte","description":"web development for the rest of us","language":"JavaScript","stars":89094,"forks":6126,"period_stars":115,"url":"https://github.com/sveltejs/svelte","desc_zh":"面向普通大众的网页开发"},{"full_name":"kajisho5/ffmpeg-skill","description":"Local video editor for coding agents: 42 FFmpeg tools with a machine-readable contract and an MCP server, for Claude Code, Cursor and Codex. Cut, captions, reframe, loudness, platform exports. No cloud, no API keys.","language":"Python","stars":7141,"forks":643,"period_stars":367,"url":"https://github.com/kajisho5/ffmpeg-skill","desc_zh":"面向编程代理的本地视频编辑器：42 款 FFmpeg 工具，配备机器可读合约和 MCP 服务器，适用于 Claude Code、Cursor 和 Codex。剪辑、字幕、重构、音量、平台导出。无需云端，无需 API 密钥。"}],"trending_weekly":[{"full_name":"GoogleChrome/modern-web-guidance-src","description":"Keep your coding agent up to date with the latest web best practices","language":"TypeScript","stars":8121,"forks":703,"period_stars":6542,"desc_zh":"让您的编码代理始终掌握最新的网络最佳实践"},{"full_name":"meta/astryx","description":"An open source design system that's fully customizable and agent ready","language":"TypeScript","stars":29770,"forks":2318,"period_stars":10939,"desc_zh":"完全可定制和代理就绪的开源设计系统"},{"full_name":"backnotprop/plannotator","description":"The workspace to stay in the loop and on top of agents - shape, decide, plan, annotate, review code, share with team, and send all feedback to agents with one click.","language":"TypeScript","stars":12752,"forks":1260,"period_stars":2325,"desc_zh":"用于随时掌握最新动态并掌控代理的工作空间——塑造、决策、规划、注释、审核代码、与团队分享，并一键将所有反馈发送给代理。"},{"full_name":"anthropics/skills","description":"Public repository for Agent Skills","language":"Python","stars":196218,"forks":23028,"period_stars":5666,"desc_zh":"座席技能的公共存储库"},{"full_name":"vercel-labs/agent-browser","description":"Browser automation CLI for AI agents","language":"Rust","stars":52119,"forks":3644,"period_stars":3760,"desc_zh":"适用于AI代理的浏览器自动化CLI"},{"full_name":"we-promise/sure","description":"The personal finance app for everyone (by everyone)","language":"Ruby","stars":16070,"forks":1397,"period_stars":4679,"desc_zh":"适合所有人（由所有人）的个人理财应用程序"},{"full_name":"ZhuLinsen/daily_stock_analysis","description":"LLM 驱动的多市场股票智能分析系统：多源行情、实时新闻、决策看板与自动推送，支持零成本定时运行。 LLM-powered multi-market stock analysis system with multi-source market data, real-time news, decision dashboard, automated notifications, and cost-free scheduled runs.","language":"Python","stars":72893,"forks":57694,"period_stars":4355,"desc_zh":"LLM 驱动的多市场股票智能分析系统：基于LLM支持零成本定时运行。的多市场股票分析系统多源行情、实时新闻、决策看板与自动推送，具有多源市场数据、实时新闻、决策仪表板、自动通知和免费计划运行。"},{"full_name":"sherlock-project/sherlock","description":"Hunt down social media accounts by username across social networks","language":"Python","stars":113328,"forks":13050,"period_stars":7067,"desc_zh":"通过社交网络中的用户名查找社交媒体帐户"},{"full_name":"google/elephant-goldfish-model","description":"Open-source plugin for designing and reviewing software with agents","language":"Python","stars":20484,"forks":1516,"period_stars":4249,"desc_zh":"用于使用代理设计和评审软件的开源插件"},{"full_name":"google-deepmind/mujoco","description":"Multi-Joint dynamics with Contact. A general purpose physics simulator.","language":"C++","stars":18207,"forks":2206,"period_stars":1448,"desc_zh":"与Contact的多关节动态。通用物理模拟器。"},{"full_name":"alibaba/open-code-review","description":"Secure, fast, efficient, battle-tested at Alibaba's scale. Hybrid architecture code review tool: deterministic pipelines + LLM Agent, precise line-level comments, built-in multi-language ruleset (NPE, thread-safety, XSS, SQL injection), OpenAI &amp; Anthropic compatible.","language":"Go","stars":53150,"forks":4345,"period_stars":3056,"desc_zh":"安全、快速、高效，在阿里巴巴的规模下经过实战检验。混合架构代码审查工具：确定性管道 + LLM 代理，精确的行级注释，内置多语言规则集（NPE、线程安全、XSS、SQL 注入），兼容 OpenAI 和 Anthropic。"},{"full_name":"addyosmani/agent-skills","description":"Production-grade engineering skills for AI coding agents.","language":"JavaScript","stars":118419,"forks":12360,"period_stars":3960,"desc_zh":"AI编码代理的生产级工程技能。"},{"full_name":"openai/codex-security","description":"OpenAI's Codex Security CLI and TypeScript SDK for finding, validating, and fixing security vulnerabilities. npm:  https://www.npmjs.com/package/@openai/codex-security","language":"TypeScript","stars":13813,"forks":1079,"period_stars":2352,"desc_zh":"OpenAI 的 Codex Security CLI 和 TypeScript SDK，用于查找、验证和修复安全漏洞。npm： https://www.npmjs.com/package/@openai/codex-security"},{"full_name":"QwenLM/qwen-code","description":"An open-source AI coding agent that lives in your terminal.","language":"TypeScript","stars":30682,"forks":3550,"period_stars":1497,"desc_zh":"一款运行在终端上的开源人工智能编码代理。"}],"top_stars":[{"full_name":"codecrafters-io/build-your-own-x","description":"Master programming by recreating your favorite technologies from scratch.","language":"Markdown","stars":563237,"forks":52697,"created_at":"2018-05-09","url":"https://github.com/codecrafters-io/build-your-own-x","topics":["awesome-list","free","programming","tutorial-code","tutorial-exercises"],"desc_zh":"通过从头开始重新创建您最喜爱的技术来掌握编程。"},{"full_name":"sindresorhus/awesome","description":"😎 Awesome lists about all kinds of interesting topics [NOTE: Pull requests are temporarily disabled until I have a chance to catch up with the existing ones]","language":"","stars":538134,"forks":38477,"created_at":"2014-07-11","url":"https://github.com/sindresorhus/awesome","topics":["awesome","awesome-list","lists","resources","unicorns"],"desc_zh":"关于各种有趣主题的😎精彩列表[注意：在我有机会赶上现有主题之前，拉取请求将暂时禁用]"},{"full_name":"public-apis/public-apis","description":"A collective list of free APIs","language":"Python","stars":499674,"forks":56023,"created_at":"2016-03-20","url":"https://github.com/public-apis/public-apis","topics":["api","apis","dataset","development","free"],"desc_zh":"免费API的集合列表"},{"full_name":"morluto/rea","description":"Reverse engineer anything with agents, from app behavior down to native binaries.","language":"TypeScript","stars":464675,"forks":113747,"created_at":"2026-04-14","url":"https://github.com/morluto/rea","topics":["agent-skills","ai","android","claude-code","cli"],"desc_zh":"使用代理对任何内容进行反向工程，从应用行为到本机二进制文件。"},{"full_name":"freeCodeCamp/freeCodeCamp","description":"freeCodeCamp.org's open-source codebase and curriculum. Learn math, programming, and computer science for free.","language":"TypeScript","stars":459234,"forks":47472,"created_at":"2014-12-24","url":"https://github.com/freeCodeCamp/freeCodeCamp","topics":["careers","certification","community","curriculum","d3"],"desc_zh":"freeCodeCamp.org的开源代码库和课程。免费学习数学、编程和计算机科学。"},{"full_name":"EbookFoundation/free-programming-books","description":":books: Freely available programming books","language":"Python","stars":401725,"forks":67903,"created_at":"2013-10-11","url":"https://github.com/EbookFoundation/free-programming-books","topics":["books","education","hacktoberfest","list","resource"],"desc_zh":": books:免费提供的编程书籍"},{"full_name":"openclaw/openclaw","description":"The AI that really does things. Any OS. Any Platform. The lobster way. 🦞 ","language":"TypeScript","stars":394612,"forks":82909,"created_at":"2025-11-24","url":"https://github.com/openclaw/openclaw","topics":["ai","assistant","crustacean","molty","openclaw"],"desc_zh":"真正做事情的人工智能。任何操作系统。任何平台。龙虾路。 🦞"},{"full_name":"donnemartin/system-design-primer","description":"Learn how to design large-scale systems. Prep for the system design interview.  Includes Anki flashcards.","language":"Python","stars":378142,"forks":59307,"created_at":"2017-02-26","url":"https://github.com/donnemartin/system-design-primer","topics":["design","design-patterns","design-system","development","interview"],"desc_zh":"了解如何设计大型系统。为系统设计面试做准备。包括Anki抽认卡。"},{"full_name":"nilbuild/developer-roadmap","description":"Interactive roadmaps, guides and other educational content to help developers grow in their careers.","language":"TypeScript","stars":372192,"forks":46501,"created_at":"2017-03-15","url":"https://github.com/nilbuild/developer-roadmap","topics":["angular-roadmap","backend-roadmap","blockchain-roadmap","computer-science","dba-roadmap"],"desc_zh":"交互式路线图、指南和其他教育内容，帮助开发人员在职业生涯中成长。"},{"full_name":"jwasham/coding-interview-university","description":"A complete computer science study plan to become a software engineer.","language":"","stars":364456,"forks":85951,"created_at":"2016-06-06","url":"https://github.com/jwasham/coding-interview-university","topics":["algorithm","algorithms","coding-interview","coding-interviews","computer-science"],"desc_zh":"一个完整的计算机科学学习计划，成为一名软件工程师。"},{"full_name":"awesome-selfhosted/awesome-selfhosted","description":"A list of Free Software network services and web applications which can be hosted on your own servers","language":"","stars":337811,"forks":15866,"created_at":"2015-06-01","url":"https://github.com/awesome-selfhosted/awesome-selfhosted","topics":["awesome","awesome-list","cloud","free-software","hosting"],"desc_zh":"可托管在您自己的服务器上的免费软件网络服务和Web应用程序列表"},{"full_name":"vinta/awesome-python","description":"The definitive list that answers \"I want to do X in Python, which tool should I use?\"","language":"Python","stars":335310,"forks":29113,"created_at":"2014-06-27","url":"https://github.com/vinta/awesome-python","topics":["awesome","awesome-list","python","python-frameworks","python-libraries"],"desc_zh":"回答“我想在Python中做X ，我应该使用哪个工具？”的最终列表"},{"full_name":"mattpocock/skills","description":"Skills for Real Engineers. Straight from my .agents directory.","language":"Shell","stars":326102,"forks":27388,"created_at":"2026-02-03","url":"https://github.com/mattpocock/skills","topics":[],"desc_zh":"真正工程师的技能。直接来自我的.agents目录。"},{"full_name":"obra/superpowers","description":"An agentic skills framework & software development methodology that works.","language":"Shell","stars":318792,"forks":28407,"created_at":"2025-10-09","url":"https://github.com/obra/superpowers","topics":["ai","brainstorming","coding","obra","sdlc"],"desc_zh":"有效的代理技能框架和软件开发方法。"},{"full_name":"affaan-m/ECC","description":"The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.","language":"JavaScript","stars":304786,"forks":44884,"created_at":"2026-01-18","url":"https://github.com/affaan-m/ECC","topics":["ai-agents","anthropic","claude","claude-code","developer-tools"],"desc_zh":"座席线束性能优化系统。Claude Code、Codex、Opencode、Cursor等的技能、本能、记忆、安全和研究优先开发。"},{"full_name":"practical-tutorials/project-based-learning","description":"Curated list of project-based tutorials","language":"Python","stars":289880,"forks":36839,"created_at":"2017-04-12","url":"https://github.com/practical-tutorials/project-based-learning","topics":["beginner-project","cpp","golang","javascript","project"],"desc_zh":"基于项目的教程精选列表"},{"full_name":"deepseek-ai/deepseek-harness","description":"DeepSeek Harness: Everything is a Plugin.","language":"TypeScript","stars":282531,"forks":34998,"created_at":"2026-08-13","url":"https://github.com/deepseek-ai/deepseek-harness","topics":["ai-agents","cordis","dsh","dsh-plugin"],"desc_zh":"DeepSeek线束：一切都是插件。"},{"full_name":"996icu/996.ICU","description":"Repo for counting stars and contributing. Press F to pay respect to glorious developers.","language":"","stars":277232,"forks":20651,"created_at":"2019-03-26","url":"https://github.com/996icu/996.ICU","topics":[],"desc_zh":"用于计算星星和贡献的回购。按F键向辉煌的开发者致敬。"},{"full_name":"NousResearch/hermes-agent","description":"The agent that grows with you","language":"Python","stars":263999,"forks":59541,"created_at":"2025-07-22","url":"https://github.com/NousResearch/hermes-agent","topics":["ai","ai-agent","ai-agents","anthropic","chatgpt"],"desc_zh":"与您一起成长的客服代表"},{"full_name":"trimstray/the-book-of-secret-knowledge","description":"A collection of inspiring lists, manuals, cheatsheets, blogs, hacks, one-liners, cli/web tools and more.","language":"","stars":259082,"forks":14896,"created_at":"2018-06-23","url":"https://github.com/trimstray/the-book-of-secret-knowledge","topics":["awesome","awesome-list","bsd","cheatsheets","devops"],"desc_zh":"一系列鼓舞人心的列表、手册、备忘单、博客、黑客、单行工具、cli/web工具等。"},{"full_name":"torvalds/linux","description":"Linux kernel source tree","language":"C","stars":255965,"forks":67517,"created_at":"2011-09-04","url":"https://github.com/torvalds/linux","topics":[],"desc_zh":"Linux内核源树"},{"full_name":"react/react","description":"The library for web and native user interfaces.","language":"JavaScript","stars":252720,"forks":52822,"created_at":"2013-05-24","url":"https://github.com/react/react","topics":["declarative","frontend","javascript","library","react"],"desc_zh":"用于Web和本机用户界面的库。"},{"full_name":"multica-ai/andrej-karpathy-skills","description":"A single CLAUDE.md file to improve Claude Code behavior, derived from Andrej Karpathy's observations on LLM coding pitfalls.","language":"","stars":233806,"forks":23253,"created_at":"2026-01-27","url":"https://github.com/multica-ai/andrej-karpathy-skills","topics":[],"desc_zh":"一个用于改进Claude Code行为的CLAUDE.md文件，源自Andrej Karpathy对LLM编码陷阱的观察。"},{"full_name":"anomalyco/opencode","description":"The open source coding agent.","language":"TypeScript","stars":227387,"forks":30809,"created_at":"2025-04-30","url":"https://github.com/anomalyco/opencode","topics":[],"desc_zh":"开源编码代理。"},{"full_name":"TheAlgorithms/Python","description":"All Algorithms implemented in Python","language":"Python","stars":226183,"forks":51338,"created_at":"2016-07-16","url":"https://github.com/TheAlgorithms/Python","topics":["algorithm","algorithm-competitions","algorithms-implemented","algos","community-driven"],"desc_zh":"Python中实现的所有算法"}],"newest":[{"full_name":"huamidev/GestaltX","description":"An MobileGestalt editor for iOS 27.x, featuring region-code tweaks, device presets, backups.","language":"Swift","stars":7938,"forks":2684,"created_at":"2026-11-09","url":"https://github.com/huamidev/GestaltX","topics":[],"desc_zh":"适用于 iOS 27.x 的 MobileGestalt 编辑器，具备区域代码调整、设备预设、备份等功能。"},{"full_name":"tangerineturtle1/NX2navi","description":"","language":"C","stars":4287,"forks":344,"created_at":"2026-11-07","url":"https://github.com/tangerineturtle1/NX2navi","topics":[],"desc_zh":""},{"full_name":"deepseek-ai/chat-demo","description":"Chat Demo","language":"TypeScript","stars":4259,"forks":906,"created_at":"2026-11-12","url":"https://github.com/deepseek-ai/chat-demo","topics":[],"desc_zh":"聊天演示"},{"full_name":"jhaizhou-ops/S2Arm","description":"Run your own Switch games natively on iPhone, iPad and Mac: game code rewritten to ARM64, graphics direct to Metal, one app for the whole library. Bring your own games and keys. 把你自己的 Switch 游戏原生带到 iPhone / iPad / Mac。","language":"C#","stars":3395,"forks":580,"created_at":"2026-11-08","url":"https://github.com/jhaizhou-ops/S2Arm","topics":["apple-silicon","arm64","game-porting","ios","ipados"],"desc_zh":"在iPhone、iPad和Mac上本地运行您自己的Switch游戏：游戏代码重写到ARM64 ，图形直接到Metal ，一个应用程序用于整个库。自带游戏和钥匙。把你自己的切换游戏原生带到iPhone/iPad/Mac。"},{"full_name":"JenkinWoo/sheeridVerify","description":"","language":"JavaScript","stars":3382,"forks":1588,"created_at":"2026-11-06","url":"https://github.com/JenkinWoo/sheeridVerify","topics":[],"desc_zh":""},{"full_name":"jamesondh/chimera-vocal-synth","description":"the ultimate vocal synthesizer - sing, speak, beatbox, and more","language":"Rust","stars":2585,"forks":323,"created_at":"2026-11-05","url":"https://github.com/jamesondh/chimera-vocal-synth","topics":[],"desc_zh":"终极人声合成器——唱歌、说话、口技等"},{"full_name":"apex-compute/ANR","description":"Apex Neural Rendering (ANR) by Apex Compute","language":"C++","stars":2503,"forks":53,"created_at":"2026-11-11","url":"https://github.com/apex-compute/ANR","topics":[],"desc_zh":"Apex Compute 的 Apex 神经渲染 (ANR)"},{"full_name":"DIYgod/pinky","description":"Let AI use your iPhone or Android phone, with you in the loop: any MCP agent from macOS, Windows or Linux, or Pinky itself, right on the phone.","language":"Go","stars":2319,"forks":248,"created_at":"2026-11-06","url":"https://github.com/DIYgod/pinky","topics":["ai-agent","android","claude-code","ios","iphone"],"desc_zh":"让人工智能使用您的iPhone或Android手机，同时您全程参与：来自macOS、Windows或Linux的任何MCP代理，或Pinky本身，都直接在手机上运行。"},{"full_name":"hitkeeen/blender-ai-mcp-addon","description":"AI assistant and MCP server for Blender: visual chat, scene tools, multi-agent workflows. Works with ChatGPT/GPT, Claude, Gemini, Ollama, OpenCode. Blender AI addon, copilot for 3D, bpy Python scripting, MCP integration.","language":"","stars":2293,"forks":57,"created_at":"2026-11-12","url":"https://github.com/hitkeeen/blender-ai-mcp-addon","topics":["ai-agents","ai-assistant","blender","blender-addon","blender-ai"],"desc_zh":"适用于 Blender 的 AI 助手和 MCP 服务器：可视化聊天、场景工具、多代理工作流。可与 ChatGPT/GPT、Claude、Gemini、Ollama、OpenCode 配合使用。Blender AI 插件、3D 智能助手、bpy Python 脚本、MCP 集成。"},{"full_name":"IainKay/ram-altman","description":"Monitors your RAM and reports any \"quite terrible\" unused capacity directly to the CEO of OpenAI.","language":"Shell","stars":2227,"forks":70,"created_at":"2026-11-05","url":"https://github.com/IainKay/ram-altman","topics":["bash","cron","dram","email","humor"],"desc_zh":"监控您的RAM，并将任何“非常糟糕”的未用容量直接报告给OpenAI的首席执行官。"},{"full_name":"Kianuni/Erosion-CN","description":"iOS / iPadOS 系统配置与 MobileGestalt 研究工具箱（中英双语 · 防白苹果安全加固版） | Bootloop-safe iOS / iPadOS System Configuration & MobileGestalt Toolbox (Bilingual EN/ZH)","language":"Swift","stars":2212,"forks":436,"created_at":"2026-11-10","url":"https://github.com/Kianuni/Erosion-CN","topics":[],"desc_zh":"iOS/iPadOS 系统配置与 MobileGestalt 研究工具箱（中英双语 · 防白苹果安全加固版） | Bootloop-safe iOS/iPadOS System Configuration & MobileGestalt Toolbox (Bilingual EN/ZH)"},{"full_name":"ersinkoc/phonebox","description":"Turn an old Android phone into a customizable desk panel and touch control deck for Windows, Linux and macOS. 115 widgets for system stats, AI coding, media and automation. USB or paired Wi-Fi. No cloud required.","language":"C#","stars":2050,"forks":271,"created_at":"2026-11-07","url":"https://github.com/ersinkoc/phonebox","topics":["android","claude-code","codex","dashboard","desk-panel"],"desc_zh":"将旧的安卓手机变成可定制的桌面面板和触摸控制面板，适用于 Windows、Linux 和 macOS。提供 115 个小部件，用于系统统计、AI 编程、媒体和自动化。USB 或配对的 Wi-Fi。无需云端。"},{"full_name":"WoYun520/gif-factory","description":"GIF 工厂：按风格制作像素、人物与宠物、粘土吉祥物、光栅卡与动态海报的 GIF Skill。","language":"Python","stars":1964,"forks":234,"created_at":"2026-11-05","url":"https://github.com/WoYun520/gif-factory","topics":[],"desc_zh":"GIF 工厂：按风格制作像素、人物与宠物、粘土吉祥物、光栅卡与动态海报的 GIF Skill。"},{"full_name":"mmdoctor/google-pro-helper","description":"","language":"Python","stars":1956,"forks":658,"created_at":"2026-11-05","url":"https://github.com/mmdoctor/google-pro-helper","topics":[],"desc_zh":""},{"full_name":"FrigadeHQ/yogurt","description":"Private AI meeting notes that stay on your computer. A free, open-source alternative to Granola for Mac, Windows and Linux.","language":"TypeScript","stars":1908,"forks":118,"created_at":"2026-11-10","url":"https://github.com/FrigadeHQ/yogurt","topics":["ai-meeting-assistant","ai-notetaker","electron","granola-alternative","linux"],"desc_zh":"保存在您电脑上的私人 AI 会议纪要。适用于 Mac、Windows 和 Linux 的免费开源 Granola 替代品。"},{"full_name":"Noniv/abyssal-garden","description":"A dreamy underwater world you can swim through in your browser: swaying kelp forests, sunbeams, a sunken ship and manta rays. Everything is generated by code with WebGPU (no images, models or sound files), all in a single 97 KB HTML file.","language":"JavaScript","stars":1840,"forks":280,"created_at":"2026-11-12","url":"https://github.com/Noniv/abyssal-garden","topics":[],"desc_zh":"您可以在浏览器中畅游的梦幻般的水下世界：摇曳的海藻林、阳光、沉船和蝠鲼。所有内容均由 WebGPU 代码生成（不含图像、模型或声音文件），全部包含在一个 97 KB 的 HTML 文件中。"},{"full_name":"HybridRobotics/supermimic","description":"Humanoid whole-body motion tracking with one differentiable world model.","language":"Python","stars":1691,"forks":122,"created_at":"2026-11-10","url":"https://github.com/HybridRobotics/supermimic","topics":[],"desc_zh":"使用一个可微分世界模型进行人形机器人全身动作跟踪。"},{"full_name":"agentes-chat/agentes-chat","description":"Open-source, self-hosted Slack alternative where your team and AI agents work together in channels and DMs. Agents run on Claude, ChatGPT/Codex, Gemini or Grok, with MCP tools, their own computer and browser, routines, memory and approvals. Web, desktop and phone apps. Docker Compose + Postgres. AGPL-3.0.","language":"TypeScript","stars":1646,"forks":295,"created_at":"2026-11-09","url":"https://github.com/agentes-chat/agentes-chat","topics":["agentic-ai","ai-agents","browser-automation","chat","claude"],"desc_zh":"开源、自托管的 Slack 替代品，您的团队和 AI 代理可以在频道和私信中协同工作。代理在Claude、ChatGPT/Codex、Gemini或Grok上运行，配备MCP工具、专属计算机和浏览器、例程、记忆和审批功能。网页版、桌面版和手机版应用程序。Docker Compose + Postgres。AGPL-3.0。"},{"full_name":"voyager-so/vork","description":"Headless 3D and VFX engine for agents. Research preview.","language":"Rust","stars":1606,"forks":132,"created_at":"2026-11-05","url":"https://github.com/voyager-so/vork","topics":["3d","ai-agents","gpu","metal","ray-tracing"],"desc_zh":"面向代理的无头 3D 和 VFX 引擎。研究预览。"},{"full_name":"livliv-dev/player","description":"A lightweight 2.5D character player for the web, with lip sync and webcam face tracking.","language":"TypeScript","stars":1572,"forks":162,"created_at":"2026-11-04","url":"https://github.com/livliv-dev/player","topics":["avatar","character","face-tracking","lip-sync","pngtuber"],"desc_zh":"一款轻量级的网页版2.5D角色播放器，具备唇形同步和摄像头面部跟踪功能。"},{"full_name":"JosssphZhou/poki","description":"Poki uses your iPhone like you do. An open-source agent that sees your screen and taps, types, and swipes across any app on your real device. Runs locally, plugs right into Claude Code and any MCP agent.","language":"Swift","stars":1531,"forks":240,"created_at":"2026-11-05","url":"https://github.com/JosssphZhou/poki","topics":["ai-agents","automation","ios","iphone","mcp"],"desc_zh":"Poki像您一样使用您的iPhone。一款开源代理，能够看到您的屏幕，并在您的真实设备上对任何应用进行点击、输入和滑动操作。在本地运行，可直接接入 Claude Code 和任何 MCP 代理。"},{"full_name":"duwqijlk/muse-protocol","description":"muse.ai 注册与邀请码兑换协议研究（纯 HTTP Python 实现）","language":"Python","stars":1500,"forks":598,"created_at":"2026-11-14","url":"https://github.com/duwqijlk/muse-protocol","topics":[],"desc_zh":"muse.ai 注册与邀请码兑换协议研究（纯 HTTP Python 实现）"},{"full_name":"egoist/mygo-music","description":"A native music player you extend with plugins","language":"Go","stars":1424,"forks":241,"created_at":"2026-11-04","url":"https://github.com/egoist/mygo-music","topics":[],"desc_zh":"一款可使用插件进行扩展的原生音乐播放器"},{"full_name":"HolyArrs/HolyArrs","description":"One self-hosted app for your shows, movies and music.","language":"Go","stars":1386,"forks":71,"created_at":"2026-11-09","url":"https://github.com/HolyArrs/HolyArrs","topics":["docker","homelab","jellyfin","media-server","plex"],"desc_zh":"一款用于您的节目、电影和音乐的自托管应用程序。"},{"full_name":"Eynnzerr/TelemetryCleaner","description":"基于 Shizuku 免 Root 清除国产安卓 SystemHelper、RegService 等系统预装隐私数据收集模块","language":"Kotlin","stars":1379,"forks":115,"created_at":"2026-11-11","url":"https://github.com/Eynnzerr/TelemetryCleaner","topics":[],"desc_zh":"基于 Shizuku 免 Root 清除国产安卓 SystemHelper、RegService 等系统预装隐私数据收集模块"}],"categories":{"texts":[{"full_name":"sindresorhus/awesome","description":"😎 Awesome lists about all kinds of interesting topics [NOTE: Pull requests are temporarily disabled until I have a chance to catch up with the existing ones]","language":"","stars":538134,"forks":38477,"created_at":"2014-07-11","url":"https://github.com/sindresorhus/awesome","topics":["awesome","awesome-list","lists","resources","unicorns"],"desc_zh":"关于各种有趣主题的😎精彩列表[注意：在我有机会赶上现有主题之前，拉取请求将暂时禁用]"},{"full_name":"awesome-selfhosted/awesome-selfhosted","description":"A list of Free Software network services and web applications which can be hosted on your own servers","language":"","stars":337811,"forks":15866,"created_at":"2015-06-01","url":"https://github.com/awesome-selfhosted/awesome-selfhosted","topics":["awesome","awesome-list","cloud","free-software","hosting"],"desc_zh":"可托管在您自己的服务器上的免费软件网络服务和Web应用程序列表"},{"full_name":"vinta/awesome-python","description":"The definitive list that answers \"I want to do X in Python, which tool should I use?\"","language":"Python","stars":335310,"forks":29113,"created_at":"2014-06-27","url":"https://github.com/vinta/awesome-python","topics":["awesome","awesome-list","python","python-frameworks","python-libraries"],"desc_zh":"回答“我想在Python中做X ，我应该使用哪个工具？”的最终列表"},{"full_name":"practical-tutorials/project-based-learning","description":"Curated list of project-based tutorials","language":"Python","stars":289880,"forks":36839,"created_at":"2017-04-12","url":"https://github.com/practical-tutorials/project-based-learning","topics":["beginner-project","cpp","golang","javascript","project"],"desc_zh":"基于项目的教程精选列表"},{"full_name":"trimstray/the-book-of-secret-knowledge","description":"A collection of inspiring lists, manuals, cheatsheets, blogs, hacks, one-liners, cli/web tools and more.","language":"","stars":259082,"forks":14896,"created_at":"2018-06-23","url":"https://github.com/trimstray/the-book-of-secret-knowledge","topics":["awesome","awesome-list","bsd","cheatsheets","devops"],"desc_zh":"一系列鼓舞人心的列表、手册、备忘单、博客、黑客、单行工具、cli/web工具等。"},{"full_name":"avelino/awesome-go","description":"A curated list of awesome Go frameworks, libraries and software","language":"Go","stars":194330,"forks":13757,"created_at":"2014-07-06","url":"https://github.com/avelino/awesome-go","topics":["awesome","awesome-list","go","golang","golang-library"],"desc_zh":"精选的Go框架、库和软件列表"},{"full_name":"521xueweihan/HelloGitHub","description":":octocat: 分享 GitHub 上有趣、入门级的开源项目。Share interesting, entry-level open source projects on GitHub.","language":"Python","stars":189417,"forks":13316,"created_at":"2016-05-04","url":"https://github.com/521xueweihan/HelloGitHub","topics":["awesome","github","hellogithub","python"],"desc_zh":": octocat: 分享 GitHub上有趣、入门级的开源项目。在GitHub上分享有趣的入门级开源项目。"},{"full_name":"Hack-with-Github/Awesome-Hacking","description":"A collection of various awesome lists for hackers, pentesters and security researchers","language":"","stars":125780,"forks":11025,"created_at":"2016-03-30","url":"https://github.com/Hack-with-Github/Awesome-Hacking","topics":["android","awesome","bug-bounty","fuzzing","hacking"],"desc_zh":"为黑客、pentesters和安全研究人员收集的各种精彩列表"},{"full_name":"jaywcjlove/awesome-mac","description":" This project is dedicated to collecting high-quality macOS software and organizing them systematically by different categories for easy search and use.","language":"Swift","stars":118705,"forks":10363,"created_at":"2016-07-17","url":"https://github.com/jaywcjlove/awesome-mac","topics":["app","apple","application","apps","awesome"],"desc_zh":"该项目致力于收集高质量的macOS软件，并按不同类别进行系统整理，以便于搜索和使用。"},{"full_name":"papers-we-love/papers-we-love","description":"Papers from the computer science community to read and discuss.","language":"Shell","stars":111594,"forks":6487,"created_at":"2013-12-15","url":"https://github.com/papers-we-love/papers-we-love","topics":["awesome","computer-science","meetup","papers","programming"],"desc_zh":"计算机科学界的论文供阅读和讨论。"},{"full_name":"MunGell/awesome-for-beginners","description":"A list of awesome beginners-friendly projects.","language":"","stars":91493,"forks":8081,"created_at":"2015-10-24","url":"https://github.com/MunGell/awesome-for-beginners","topics":["awesome","awesome-list","beginner-project","beginners-friendly","list"],"desc_zh":"适合初学者的精彩项目列表。"},{"full_name":"datawhalechina/hello-agents","description":"📚 《从零开始构建智能体》——从零开始的智能体原理与实践教程","language":"Python","stars":87190,"forks":10896,"created_at":"2025-09-07","url":"https://github.com/datawhalechina/hello-agents","topics":["agent","llm","rag","tutorial"],"desc_zh":"📚 《从零开始构建智能体》——从零开始的智能体原理与实践教程"},{"full_name":"DopplerHQ/awesome-interview-questions","description":":octocat: A curated awesome list of lists of interview questions. Feel free to contribute! :mortar_board: ","language":"","stars":85631,"forks":9613,"created_at":"2015-11-28","url":"https://github.com/DopplerHQ/awesome-interview-questions","topics":["android-interview-questions","angularjs-interview-questions","awesome","awesome-list","awesomeness"],"desc_zh":": octocat ：精心策划的面试问题清单。随意贡献！: mortar_board:"},{"full_name":"shareAI-lab/learn-claude-code","description":"Bash is all you need -  A nano claude code–like 「agent harness」, built from 0 to 1","language":"Python","stars":80505,"forks":12874,"created_at":"2025-06-29","url":"https://github.com/shareAI-lab/learn-claude-code","topics":["agent","agent-development","ai-agent","claude","claude-code"],"desc_zh":"Bash是您所需要的一切- nano claude类似代码「的代理线束」，从0到1构建"},{"full_name":"rohitg00/ai-engineering-from-scratch","description":"Learn AI Engineering! Learn it. Build it. Ship it for others.","language":"Python","stars":79188,"forks":14131,"created_at":"2026-03-18","url":"https://github.com/rohitg00/ai-engineering-from-scratch","topics":["agents","ai","ai-agents","ai-engineering","computer-vision"],"desc_zh":"学习人工智能工程！学习它。建造它。为别人运送它。"},{"full_name":"binhnguyennus/awesome-scalability","description":"The Patterns of Scalable, Reliable, and Performant Large-Scale Systems","language":"","stars":75818,"forks":7252,"created_at":"2017-12-27","url":"https://github.com/binhnguyennus/awesome-scalability","topics":["architecture","awesome","awesome-list","backend","big-data"],"desc_zh":"可扩展、可靠和高性能的大型系统的模式"},{"full_name":"enaqx/awesome-react","description":"A collection of awesome things regarding React ecosystem","language":"","stars":75311,"forks":7693,"created_at":"2014-08-06","url":"https://github.com/enaqx/awesome-react","topics":["awesome","awesome-list","javascript","react","react-apps"],"desc_zh":"关于React生态系统的一系列精彩内容"},{"full_name":"fffaraz/awesome-cpp","description":"A curated list of awesome C++ (or C) frameworks, libraries, resources, and shiny things. Inspired by awesome-... stuff.","language":"","stars":74468,"forks":8378,"created_at":"2014-07-17","url":"https://github.com/fffaraz/awesome-cpp","topics":["awesome","awesome-list","c","c-plus-plus","cpp"],"desc_zh":"精心策划的C + + （或C ）框架、库、资源和闪亮事物的列表。灵感来自真棒……的东西。"},{"full_name":"prakhar1989/awesome-courses","description":":books: List of awesome university courses for learning Computer Science!","language":"","stars":72941,"forks":8481,"created_at":"2014-11-15","url":"https://github.com/prakhar1989/awesome-courses","topics":["awesome","awesome-list","computer-science","courses"],"desc_zh":": books:学习计算机科学的优秀大学课程列表！"},{"full_name":"byoungd/up","description":"韩先凯的人生进阶指南 AI时代 中英双语终身学习指南：AI、学习 、创业、财富、爱情与人生","language":"JavaScript","stars":70641,"forks":7032,"created_at":"2017-05-30","url":"https://github.com/byoungd/up","topics":["ai-literacy","chinese","english-learning","lifelong-learning","open-education"],"desc_zh":"韩先凯的人生进阶指南 AI时代 中英双语终身学习指南： AI、学习 、创业、财富、爱情与人生"},{"full_name":"firstcontributions/first-contributions","description":"🚀✨ Help beginners to contribute to open source projects","language":"","stars":56898,"forks":112797,"created_at":"2016-09-20","url":"https://github.com/firstcontributions/first-contributions","topics":["beginner","beginner-friendly","contribute","contribution","contributions-welcome"],"desc_zh":"🚀✨ 帮助初学者为开源项目做出贡献"},{"full_name":"Avik-Jain/100-Days-Of-ML-Code","description":"100 Days of ML Coding","language":"","stars":52072,"forks":11627,"created_at":"2018-07-05","url":"https://github.com/Avik-Jain/100-Days-Of-ML-Code","topics":["100-days-of-code-log","100daysofcode","deep-learning","implementation","infographics"],"desc_zh":"100天ML编码"},{"full_name":"luongnv89/claude-howto","description":"A visual, example-driven guide to Claude Code — from basic concepts to advanced agents, with copy-paste templates that bring immediate value.","language":"Python","stars":47332,"forks":5758,"created_at":"2025-11-07","url":"https://github.com/luongnv89/claude-howto","topics":["claude-code","guide","tutorial"],"desc_zh":"以示例为导向的可视化Claude准则指南--从基本概念到高级客服代表，其中的复制粘贴模板可立即带来价值。"},{"full_name":"aymericdamien/TensorFlow-Examples","description":"TensorFlow Tutorial and Examples for Beginners (support TF v1 & v2)","language":"Jupyter Notebook","stars":43728,"forks":14602,"created_at":"2015-11-11","url":"https://github.com/aymericdamien/TensorFlow-Examples","topics":["deep-learning","examples","machine-learning","python","tensorflow"],"desc_zh":"初学者TensorFlow教程和示例（支持TF v1和v2 ）"},{"full_name":"mouredev/Hello-Python","description":"Curso para aprender el lenguaje de programación Python desde cero y para principiantes. 100 clases, 44 horas en vídeo, código, proyectos y grupo de chat. Fundamentos, frontend, backend, testing, IA...","language":"Python","stars":38064,"forks":2353,"created_at":"2022-08-03","url":"https://github.com/mouredev/Hello-Python","topics":["backend","chatgpt","chatgpt-api","fastapi","frontend"],"desc_zh":"Curso para aprender el lenguaje de programación Python desde cero y para principiantes. 100 clases, 44 horas en vídeo, código, proyectos y grupo de chat. Fundamentos、前端、后端、测试、IA……"}],"ai":[{"full_name":"morluto/rea","description":"Reverse engineer anything with agents, from app behavior down to native binaries.","language":"TypeScript","stars":464675,"forks":113750,"created_at":"2026-04-14","url":"https://github.com/morluto/rea","topics":["agent-skills","ai","android","claude-code","cli"],"desc_zh":"使用代理对任何内容进行反向工程，从应用行为到本机二进制文件。"},{"full_name":"openclaw/openclaw","description":"The AI that really does things. Any OS. Any Platform. The lobster way. 🦞 ","language":"TypeScript","stars":394612,"forks":82909,"created_at":"2025-11-24","url":"https://github.com/openclaw/openclaw","topics":["ai","assistant","crustacean","molty","openclaw"],"desc_zh":"真正做事情的人工智能。任何操作系统。任何平台。龙虾路。 🦞"},{"full_name":"obra/superpowers","description":"An agentic skills framework & software development methodology that works.","language":"Shell","stars":318792,"forks":28407,"created_at":"2025-10-09","url":"https://github.com/obra/superpowers","topics":["ai","brainstorming","coding","obra","sdlc"],"desc_zh":"有效的代理技能框架和软件开发方法。"},{"full_name":"affaan-m/ECC","description":"The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.","language":"JavaScript","stars":304786,"forks":44884,"created_at":"2026-01-18","url":"https://github.com/affaan-m/ECC","topics":["ai-agents","anthropic","claude","claude-code","developer-tools"],"desc_zh":"座席线束性能优化系统。Claude Code、Codex、Opencode、Cursor等的技能、本能、记忆、安全和研究优先开发。"},{"full_name":"NousResearch/hermes-agent","description":"The agent that grows with you","language":"Python","stars":263999,"forks":59541,"created_at":"2025-07-22","url":"https://github.com/NousResearch/hermes-agent","topics":["ai","ai-agent","ai-agents","anthropic","chatgpt"],"desc_zh":"与您一起成长的客服代表"},{"full_name":"n8n-io/n8n","description":"Fair-code workflow automation platform with native AI capabilities. Combine visual building with custom code, self-host or cloud, 400+ integrations.","language":"TypeScript","stars":210694,"forks":61532,"created_at":"2019-06-22","url":"https://github.com/n8n-io/n8n","topics":["ai","apis","automation","cli","data-flow"],"desc_zh":"具有原生AI功能的公平代码工作流程自动化平台。将视觉构建与自定义代码、自托管或云、400多个集成相结合。"},{"full_name":"firecrawl/firecrawl","description":"Supercharge your AI agents with data from the web and beyond. Building the library for superintelligence. 🔥","language":"TypeScript","stars":202424,"forks":10604,"created_at":"2024-04-15","url":"https://github.com/firecrawl/firecrawl","topics":["ai","ai-agents","ai-crawler","ai-scraping","ai-search"],"desc_zh":"利用来自网络及其他方面的数据，为您的人工智能代理增压。构建超级智能的库。 🔥"},{"full_name":"DietrichGebert/ponytail","description":"Makes your AI agent think like the laziest senior dev in the room. The best code is the code you never wrote.","language":"JavaScript","stars":192353,"forks":10791,"created_at":"2026-06-12","url":"https://github.com/DietrichGebert/ponytail","topics":["agent-skills","ai-agents","claude","claude-code","claude-code-plugin"],"desc_zh":"让你的人工智能代理像房间里最懒惰的高级开发人员一样思考。最好的代码是你从未写过的代码。"},{"full_name":"Significant-Gravitas/AutoGPT","description":"AutoGPT is the vision of accessible AI for everyone, to use and to build on. Our mission is to provide the tools, so that you can focus on what matters.","language":"Python","stars":188070,"forks":45856,"created_at":"2023-03-16","url":"https://github.com/Significant-Gravitas/AutoGPT","topics":["agentic-ai","agents","ai","artificial-intelligence","autonomous-agents"],"desc_zh":"AutoGPT的愿景是为每个人提供可访问的人工智能，供其使用并以此为基础。我们的使命是提供工具，让您专注于重要的事情。"},{"full_name":"ollama/ollama","description":"Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.","language":"Go","stars":187304,"forks":19118,"created_at":"2023-06-26","url":"https://github.com/ollama/ollama","topics":["deepseek","gemma","glm","go","golang"],"desc_zh":"开始使用Kimi、GLM、MiniMax、DeepSeek、gpt-oss、Qwen、Gemma和其他型号。"},{"full_name":"f/prompts.chat","description":"f.k.a. Awesome ChatGPT Prompts. Share, discover, and collect prompts from the community. Free and open source — self-host for your organization with complete privacy.","language":"MDX","stars":177698,"forks":22663,"created_at":"2022-12-05","url":"https://github.com/f/prompts.chat","topics":["ai","artificial-intelligence","awesome-list","chatgpt","chatgpt-prompts"],"desc_zh":"f.k.a. Awesome ChatGPT提示。分享、发现和收集社区提示。免费开源--为您的组织提供完全隐私的自助出租服务。"},{"full_name":"huggingface/transformers","description":"🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ","language":"Python","stars":169102,"forks":35217,"created_at":"2018-10-29","url":"https://github.com/huggingface/transformers","topics":["audio","deep-learning","deepseek","gemma","glm"],"desc_zh":"🤗 Transformers ：用于推理和训练的文本、视觉、音频和多模态模型中最先进的机器学习模型的模型定义框架。"},{"full_name":"AUTOMATIC1111/stable-diffusion-webui","description":"Stable Diffusion web UI","language":"Python","stars":165326,"forks":31114,"created_at":"2022-08-22","url":"https://github.com/AUTOMATIC1111/stable-diffusion-webui","topics":["ai","ai-art","deep-learning","diffusion","gradio"],"desc_zh":"稳定的扩散Web UI"},{"full_name":"langgenius/dify","description":"Build Agentic workflows, RAG pipelines, with rich AI model and tool support on one collaborative workspace. Deploy on cloud, VPC, or self-hosted, so teams move from prototype to production without rebuilding the stack.","language":"Python","stars":161317,"forks":25516,"created_at":"2023-04-12","url":"https://github.com/langgenius/dify","topics":["agent","agentic-ai","agentic-framework","agentic-workflow","ai"],"desc_zh":"在一个协作工作区上构建Agentic工作流程、RAG管道以及丰富的AI模型和工具支持。部署在云、VPC或自托管上，因此团队无需重新构建堆栈即可从原型迁移到生产环境。"},{"full_name":"Snailclimb/JavaGuide","description":"Java 面试 & 后端通用面试指南，覆盖计算机基础、数据库、分布式、高并发、系统设计与 AI 应用开发","language":"JavaScript","stars":159594,"forks":46106,"created_at":"2018-05-07","url":"https://github.com/Snailclimb/JavaGuide","topics":["agent","ai","context-engineering","deepseek","interview"],"desc_zh":"Java 面试 & 后端通用面试指南，覆盖计算机基础、数据库、分布式、高并发、系统设计与 AI 应用开发"},{"full_name":"open-webui/open-webui","description":"User-friendly AI Interface (Supports Ollama, OpenAI API, ...)","language":"Svelte","stars":158875,"forks":23090,"created_at":"2023-10-06","url":"https://github.com/open-webui/open-webui","topics":["ai","llm","llm-ui","llm-webui","llms"],"desc_zh":"用户友好的AI界面（支持Ollama、OpenAI API等）"},{"full_name":"github/spec-kit","description":"💫 Toolkit to help you get started with SDD or any other process!","language":"Python","stars":150154,"forks":13490,"created_at":"2025-08-21","url":"https://github.com/github/spec-kit","topics":["ai","copilot","development","engineering","prd"],"desc_zh":"帮助您开始使用SDD或任何其他流程的工💫具包！"},{"full_name":"langchain-ai/langchain","description":"The agent engineering platform.","language":"Python","stars":149740,"forks":25147,"created_at":"2022-10-17","url":"https://github.com/langchain-ai/langchain","topics":["agents","ai","ai-agents","anthropic","chatgpt"],"desc_zh":"代理工程平台。"},{"full_name":"Graphify-Labs/graphify","description":"Turn any codebase, with its docs, SQL schemas, configs, and PDFs, into a queryable knowledge graph. A /graphify skill for Claude Code, Cursor, Codex, and Gemini CLI: local deterministic AST parsing, every edge explained, no vector store.","language":"Python","stars":149172,"forks":14338,"created_at":"2026-04-03","url":"https://github.com/Graphify-Labs/graphify","topics":["ai-agents","antigravity","ast","claude-code","code-analysis"],"desc_zh":"将任何代码库及其文档、SQL架构、配置和PDF转换为可查询的知识图。Claude Code、Cursor、Codex和Gemini CLI的A/graphify技能：本地确定性AST解析，解释每个边缘，没有矢量存储。"},{"full_name":"Comfy-Org/ComfyUI","description":"The most powerful and modular diffusion model GUI, api and backend with a graph/nodes interface. The fastest local inference engine in the world.","language":"Python","stars":147237,"forks":17586,"created_at":"2023-01-17","url":"https://github.com/Comfy-Org/ComfyUI","topics":["ai","comfy","comfyui","python","pytorch"],"desc_zh":"最强大、模块化的扩散模型GUI、API和后端，具有图形/节点界面。世界上最快的本地推理引擎。"},{"full_name":"harry0703/MoneyPrinterTurbo","description":"利用 AI 大模型和自动化工作流，根据主题或关键词一键生成高清短视频。Generate HD short videos from a topic or keyword with an automated AI workflow.","language":"Python","stars":144077,"forks":23099,"created_at":"2024-03-11","url":"https://github.com/harry0703/MoneyPrinterTurbo","topics":["ai-video-generator","content-creation","ffmpeg","instagram-reels","llm"],"desc_zh":"利用 AI 大模型和自动化工作流，根据主题或关键词一键生成高清短视频。使用自动化AI工作流程从主题或关键字生成高清短视频。"},{"full_name":"TauricResearch/TradingAgents","description":"TradingAgents: Multi-Agents LLM Financial Trading Framework","language":"Python","stars":122885,"forks":23560,"created_at":"2024-12-28","url":"https://github.com/TauricResearch/TradingAgents","topics":["agent","finance","llm","multiagent","trading"],"desc_zh":"TradingAgent ：多代理LLM金融交易框架"},{"full_name":"browser-use/browser-use","description":"Open-source Python library for AI browser agents, plus Browser Use Cloud: stealth browsers and a hosted agent API.","language":"Python","stars":121258,"forks":13559,"created_at":"2024-10-31","url":"https://github.com/browser-use/browser-use","topics":["ai-agents","ai-tools","browser-agent","browser-automation","browser-use"],"desc_zh":"适用于AI浏览器代理的开源Python库，以及Browser Use Cloud ：隐形浏览器和托管代理API。"}],"dev":[{"full_name":"morluto/rea","description":"Reverse engineer anything with agents, from app behavior down to native binaries.","language":"TypeScript","stars":464675,"forks":113750,"created_at":"2026-04-14","url":"https://github.com/morluto/rea","topics":["agent-skills","ai","android","claude-code","cli"],"desc_zh":"使用代理对任何内容进行反向工程，从应用行为到本机二进制文件。"},{"full_name":"affaan-m/ECC","description":"The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.","language":"JavaScript","stars":304786,"forks":44884,"created_at":"2026-01-18","url":"https://github.com/affaan-m/ECC","topics":["ai-agents","anthropic","claude","claude-code","developer-tools"],"desc_zh":"座席线束性能优化系统。Claude Code、Codex、Opencode、Cursor等的技能、本能、记忆、安全和研究优先开发。"},{"full_name":"n8n-io/n8n","description":"Fair-code workflow automation platform with native AI capabilities. Combine visual building with custom code, self-host or cloud, 400+ integrations.","language":"TypeScript","stars":210694,"forks":61532,"created_at":"2019-06-22","url":"https://github.com/n8n-io/n8n","topics":["ai","apis","automation","cli","data-flow"],"desc_zh":"具有原生AI功能的公平代码工作流程自动化平台。将视觉构建与自定义代码、自托管或云、400多个集成相结合。"},{"full_name":"yt-dlp/yt-dlp","description":"A feature-rich command-line audio/video downloader","language":"Python","stars":208498,"forks":18389,"created_at":"2020-10-26","url":"https://github.com/yt-dlp/yt-dlp","topics":["cli","downloader","python","sponsorblock","youtube-dl"],"desc_zh":"功能丰富的命令行音频/视频下载器"},{"full_name":"DietrichGebert/ponytail","description":"Makes your AI agent think like the laziest senior dev in the room. The best code is the code you never wrote.","language":"JavaScript","stars":192353,"forks":10791,"created_at":"2026-06-12","url":"https://github.com/DietrichGebert/ponytail","topics":["agent-skills","ai-agents","claude","claude-code","claude-code-plugin"],"desc_zh":"让你的人工智能代理像房间里最懒惰的高级开发人员一样思考。最好的代码是你从未写过的代码。"},{"full_name":"ohmyzsh/ohmyzsh","description":"🙃   A delightful community-driven (with 2,500+ contributors) framework for managing your zsh configuration. Includes 300+ optional plugins (rails, git, macOS, hub, docker, homebrew, node, php, python, etc), 140+ themes to spice up your morning, and an auto-update tool that makes it easy to keep up with the latest updates from the community.","language":"Shell","stars":190640,"forks":27279,"created_at":"2009-08-28","url":"https://github.com/ohmyzsh/ohmyzsh","topics":["cli","cli-app","oh-my-zsh","oh-my-zsh-plugin","oh-my-zsh-theme"],"desc_zh":"🙃   一个令人愉悦的社区驱动（拥有2,500多名贡献者）框架，用于管理您的zsh配置。包括300多个可选插件（ rails、git、macOS、hub、docker、homebrew、node、php、python等） ， 140多个主题为您的早晨增色，以及一个自动更新工具，可以轻松跟上社区的最新更新。"},{"full_name":"Graphify-Labs/graphify","description":"Turn any codebase, with its docs, SQL schemas, configs, and PDFs, into a queryable knowledge graph. A /graphify skill for Claude Code, Cursor, Codex, and Gemini CLI: local deterministic AST parsing, every edge explained, no vector store.","language":"Python","stars":149172,"forks":14338,"created_at":"2026-04-03","url":"https://github.com/Graphify-Labs/graphify","topics":["ai-agents","antigravity","ast","claude-code","code-analysis"],"desc_zh":"将任何代码库及其文档、SQL架构、配置和PDF转换为可查询的知识图。Claude Code、Cursor、Codex和Gemini CLI的A/graphify技能：本地确定性AST解析，解释每个边缘，没有矢量存储。"},{"full_name":"sherlock-project/sherlock","description":"Hunt down social media accounts by username across social networks","language":"Python","stars":113328,"forks":13050,"created_at":"2018-12-24","url":"https://github.com/sherlock-project/sherlock","topics":["cli","cti","cybersecurity","forensics","hacktoberfest"],"desc_zh":"通过社交网络中的用户名查找社交媒体帐户"},{"full_name":"Panniantong/Agent-Reach","description":"Give your AI agent eyes to see the entire internet. Read & search Twitter, Reddit, YouTube, GitHub, Bilibili, XiaoHongShu — one CLI, zero API fees.","language":"Python","stars":112446,"forks":10077,"created_at":"2026-02-24","url":"https://github.com/Panniantong/Agent-Reach","topics":["agent-infrastructure","ai-agent","ai-search","automation","bilibili"],"desc_zh":"让您的人工智能代理看到整个互联网。阅读和搜索Twitter、Reddit、YouTube、GitHub、Bilibili、XiaoHongShu —一个CLI ，无API费用。"},{"full_name":"google-gemini/gemini-cli","description":"An open-source AI agent that brings the power of Gemini directly into your terminal.","language":"TypeScript","stars":108886,"forks":14957,"created_at":"2025-04-17","url":"https://github.com/google-gemini/gemini-cli","topics":["ai","ai-agents","cli","gemini","gemini-api"],"desc_zh":"一个开源的人工智能代理，将双子座的力量直接带入您的终端。"},{"full_name":"tt-a1i/archify","description":"Turn any idea, plan, or codebase into a beautiful interactive diagram. An agent skill for Claude Code, Codex, and more.","language":"JavaScript","stars":97237,"forks":6639,"created_at":"2026-04-15","url":"https://github.com/tt-a1i/archify","topics":["agent-skills","ai-agents","architecture-diagram","claude-code","claude-skills"],"desc_zh":"将任何想法、计划或代码库转换为漂亮的交互式图表。Claude Code、Codex等的代理技能。"},{"full_name":"puppeteer/puppeteer","description":"JavaScript API for Chrome and Firefox","language":"TypeScript","stars":95849,"forks":9607,"created_at":"2017-05-09","url":"https://github.com/puppeteer/puppeteer","topics":["automation","chrome","chromium","developer-tools","firefox"],"desc_zh":"适用于Chrome和Firefox的JavaScript API"},{"full_name":"OpenHands/OpenHands","description":"🙌 OpenHands: AI-Driven Development","language":"TypeScript","stars":93620,"forks":12538,"created_at":"2024-03-13","url":"https://github.com/OpenHands/OpenHands","topics":["agent","artificial-intelligence","chatgpt","claude-ai","cli"],"desc_zh":"🙌 OpenHands ：人工智能驱动的开发"},{"full_name":"rtk-ai/rtk","description":"CLI proxy that reduces LLM token consumption by 60-90% on common dev commands. Single Rust binary, zero dependencies","language":"Rust","stars":86827,"forks":5573,"created_at":"2026-01-22","url":"https://github.com/rtk-ai/rtk","topics":["agentic-coding","ai-coding","anthropic","claude-code","cli"],"desc_zh":"CLI代理，可将常见开发命令的LLM令牌消耗量减少60-90%。单个Rust二进制文件，零依赖"},{"full_name":"junegunn/fzf","description":":cherry_blossom: A command-line fuzzy finder","language":"Go","stars":84231,"forks":3504,"created_at":"2013-10-23","url":"https://github.com/junegunn/fzf","topics":["bash","cli","fish","fzf","go"],"desc_zh":": cherry_blossom ：命令行模糊查找器"},{"full_name":"jesseduffield/lazygit","description":"simple terminal UI for git commands","language":"Go","stars":83930,"forks":3264,"created_at":"2018-05-19","url":"https://github.com/jesseduffield/lazygit","topics":["cli","git","terminal"],"desc_zh":"git命令的简单终端UI"},{"full_name":"hoppscotch/hoppscotch","description":"Open-Source API Development Ecosystem • https://hoppscotch.io • Offline, On-Prem & Cloud • Web, Desktop & CLI • Open-Source Alternative to Postman, Insomnia","language":"TypeScript","stars":80834,"forks":6246,"created_at":"2019-08-21","url":"https://github.com/hoppscotch/hoppscotch","topics":["api","api-client","api-rest","api-testing","developer-tools"],"desc_zh":"开源API开发生态系统• https://hoppscotch.io •离线、本地和云• Web、桌面和CLI • Postman、Insomnia的开源替代品"},{"full_name":"ComposioHQ/awesome-claude-skills","description":"A curated list of awesome Claude Skills, resources, and tools for customizing Claude AI workflows","language":"Python","stars":79677,"forks":9749,"created_at":"2025-10-17","url":"https://github.com/ComposioHQ/awesome-claude-skills","topics":["agent-skills","ai-agents","antigravity","automation","claude"],"desc_zh":"用于自定义Claude AI工作流程的精选Claude技能、资源和工具列表"},{"full_name":"Ebony-Vinyl/dsh-our-free-model","description":"在 dsh 里装上这个插件即可，无需登录、注册或填 API Key，就能使用包括 DeepSeek V4.1 Flash、Kimi K3 在内的前沿模型——完全免费，不限量。 All you do is install this plugin in dsh: no login, no sign-up, no API key — the frontier models are just there, DeepSeek V4.1 Flash and Kimi K3 among them. Completely free, with no usage cap.","language":"JavaScript","stars":77699,"forks":2195,"created_at":"2026-09-24","url":"https://github.com/Ebony-Vinyl/dsh-our-free-model","topics":["ai-agents","deepseek","deepseek-harness","developer-tools","dsh"],"desc_zh":"在 dsh 里装上这个插件即可，无需登录、注册或填 API Key ， DeepSeek就能使用包括 V4.1 Flash、 Kimi K3 在内的前沿模型——完全免费 ，你所不限量。要做的就是在dsh中安装这个插件：无需登录，无需注册，无需API key--前沿型号就在那里， DeepSeek V4.1 Flash和Kimi K3就是其中之一。完全免费，没有使用上限。"},{"full_name":"daytonaio/daytona","description":"Daytona is a Secure and Elastic Infrastructure for Running AI-Generated Code","language":"","stars":71311,"forks":5652,"created_at":"2024-02-06","url":"https://github.com/daytonaio/daytona","topics":["agentic-workflow","ai","ai-agents","ai-runtime","ai-sandboxes"],"desc_zh":"Daytona是用于运行AI生成代码的安全和弹性基础设施"},{"full_name":"BurntSushi/ripgrep","description":"ripgrep recursively searches directories for a regex pattern while respecting your gitignore","language":"Rust","stars":69999,"forks":3554,"created_at":"2016-03-11","url":"https://github.com/BurntSushi/ripgrep","topics":["cli","command-line","command-line-tool","gitignore","grep"],"desc_zh":"ripgrep递归搜索目录以查找正则表达式模式，同时尊重您的gitignore"},{"full_name":"localstack/localstack","description":"💻 A fully functional local AWS cloud stack. Develop and test your cloud & Serverless apps offline","language":"Python","stars":65112,"forks":4837,"created_at":"2016-10-25","url":"https://github.com/localstack/localstack","topics":["aws","cloud","continuous-integration","developer-tools","localstack"],"desc_zh":"功能齐💻全的本地AWS云堆栈。离线开发和测试您的云和无服务器应用程序"},{"full_name":"tldr-pages/tldr","description":"Collaborative cheatsheets for console commands 📚.","language":"Markdown","stars":64227,"forks":5657,"created_at":"2013-12-08","url":"https://github.com/tldr-pages/tldr","topics":["android","bsd","cheatsheet","cheatsheets","cli"],"desc_zh":"控制台命令的协作备忘单📚。"},{"full_name":"tw93/Pake","description":"Turn any website into a lightweight desktop app with one command, on macOS, Windows and Linux.","language":"Rust","stars":63713,"forks":13028,"created_at":"2022-10-14","url":"https://github.com/tw93/Pake","topics":["chatgpt","claude","cli","desktop","desktop-app"],"desc_zh":"只需在macOS、Windows和Linux上使用一个命令，即可将任何网站转变为轻量级桌面应用程序。"},{"full_name":"Raphire/Win11Debloat","description":"A simple, lightweight PowerShell script that allows you to remove pre-installed apps, disable telemetry, as well as perform various other changes to declutter and customize your Windows experience. Win11Debloat works for both Windows 10 and Windows 11.","language":"PowerShell","stars":63072,"forks":2826,"created_at":"2020-10-27","url":"https://github.com/Raphire/Win11Debloat","topics":["automated","bloatware","bloatware-removal","cleanup","cli"],"desc_zh":"一个简单、轻量级的PowerShell脚本，允许您删除预安装的应用程序、禁用遥测以及执行各种其他更改来整理和自定义Windows体验。Win11Debloat适用于Windows 10和Windows 11。"}],"life":[{"full_name":"humanetech-community/awesome-humane-tech","description":"Promoting Solutions that Improve Wellbeing, Freedom and Society","language":"","stars":3127,"forks":131,"created_at":"2018-02-08","url":"https://github.com/humanetech-community/awesome-humane-tech","topics":["awesome-list","decentralization","democracy","ergonomics","ethics"],"desc_zh":"推广改善福祉、自由和社会的解决方案"},{"full_name":"meditohq/medito-app","description":"The Medito app is a 100% free meditation app built with flutter. The app is available on Android and iOS.","language":"Dart","stars":1339,"forks":174,"created_at":"2021-02-28","url":"https://github.com/meditohq/medito-app","topics":["android","flutter","ios","meditation","meditation-app"],"desc_zh":"Medito应用程序是一款使用Flutter构建的100%免费冥想应用程序。该应用可在Android和iOS上使用。"},{"full_name":"akaMrNagar/Mindful","description":"Your Ultimate Companion for Focus and Well-being.","language":"Dart","stars":863,"forks":93,"created_at":"2024-12-13","url":"https://github.com/akaMrNagar/Mindful","topics":["android-app","datausage","flutter-app","focus","foss"],"desc_zh":"专注和幸福的终极伴侣。"}],"finance":[{"full_name":"TauricResearch/TradingAgents","description":"TradingAgents: Multi-Agents LLM Financial Trading Framework","language":"Python","stars":122885,"forks":23560,"created_at":"2024-12-28","url":"https://github.com/TauricResearch/TradingAgents","topics":["agent","finance","llm","multiagent","trading"],"desc_zh":"TradingAgent ：多代理LLM金融交易框架"},{"full_name":"openbq-org/OpenBB","description":"Open Data Platform for analysts, quants and AI agents.","language":"Python","stars":75485,"forks":7897,"created_at":"2020-12-20","url":"https://github.com/openbq-org/OpenBB","topics":["ai","crypto","derivatives","economics","equity"],"desc_zh":"面向分析师、量化分析师和人工智能代理的开放数据平台。"},{"full_name":"ZhuLinsen/daily_stock_analysis","description":"LLM 驱动的多市场股票智能分析系统：多源行情、实时新闻、决策看板与自动推送，支持零成本定时运行。  LLM-powered multi-market stock analysis system with multi-source market data, real-time news, decision dashboard, automated notifications, and cost-free scheduled runs.","language":"Python","stars":72893,"forks":57694,"created_at":"2026-01-10","url":"https://github.com/ZhuLinsen/daily_stock_analysis","topics":["a-stock","ai-agent","aigc","llm","quant"],"desc_zh":"LLM 驱动的多市场股票智能分析系统：基于LLM支持零成本定时运行。的多市场股票分析系统多源行情、实时新闻、决策看板与自动推送，具有多源市场数据、实时新闻、决策仪表板、自动通知和免费计划运行。"},{"full_name":"microsoft/qlib","description":"Qlib is an AI-oriented Quant investment platform that aims to use AI tech to empower Quant Research, from exploring ideas to implementing productions. Qlib supports diverse ML modeling paradigms, including supervised learning, market dynamics modeling, and RL, and is now equipped with https://github.com/microsoft/RD-Agent to automate R&D process.","language":"Python","stars":50340,"forks":7945,"created_at":"2020-08-14","url":"https://github.com/microsoft/qlib","topics":["algorithmic-trading","auto-quant","deep-learning","finance","fintech"],"desc_zh":"Qlib是一个面向人工智能的Quant投资平台，旨在利用人工智能技术为Quant Research提供支持，从探索创意到实施产品。Qlib支持多种机器学习建模范式，包括监督学习、市场动态建模和强化学习，现在配备了https://github.com/microsoft/RD-Agent以实现研发流程的自动化。"},{"full_name":"vnpy/vnpy","description":"基于Python的开源量化交易平台开发框架","language":"Python","stars":46398,"forks":12610,"created_at":"2015-03-02","url":"https://github.com/vnpy/vnpy","topics":["algotrading","finance","fintech","investment","python"],"desc_zh":"基于Python的开源量化交易平台开发框架"},{"full_name":"ccxt/ccxt","description":"A unified trading API with more than 100 crypto exchanges and prediction markets in JavaScript / TypeScript / Python / C# / PHP / Go / Java / Rust","language":"Python","stars":44901,"forks":8986,"created_at":"2017-05-14","url":"https://github.com/ccxt/ccxt","topics":["altcoin","api","arbitrage","bitcoin","bot"],"desc_zh":"一个统一的交易API ，在JavaScript/TypeScript/Python/C #/PHP/Go/Java/Rust中拥有100多个加密交易所和预测市场"},{"full_name":"HKUDS/Vibe-Trading","description":"\"Vibe-Trading: Your Personal Trading Agent\"","language":"Python","stars":38398,"forks":6251,"created_at":"2026-04-01","url":"https://github.com/HKUDS/Vibe-Trading","topics":["ai-agent","algorithmic-trading","backtesting","fintech","llm"],"desc_zh":"“Vibe-Trading ：您的个人交易代理”"},{"full_name":"Fincept-Corporation/FinceptTerminal","description":"FinceptTerminal is a modern finance application offering advanced market analytics, investment research, and economic data tools, designed for interactive exploration and data-driven decision-making in a user-friendly environment.","language":"C++","stars":33911,"forks":4869,"created_at":"2024-08-29","url":"https://github.com/Fincept-Corporation/FinceptTerminal","topics":["ai-agents","algorithmic-trading","bloomberg-terminal","cpp","finance"],"desc_zh":"FinceptTerminal是一款现代金融应用程序，提供先进的市场分析、投资研究和经济数据工具，专为在用户友好的环境中进行交互式探索和数据驱动的决策而设计。"},{"full_name":"nautechsystems/nautilus_trader","description":"Production-grade Rust-native trading engine with deterministic event-driven architecture","language":"Rust","stars":31603,"forks":4288,"created_at":"2018-06-25","url":"https://github.com/nautechsystems/nautilus_trader","topics":["algorithmic-trading-engine","artificial-intelligence","crypto-trading","equity-trading","forex"],"desc_zh":"具有确定性事件驱动架构的生产级Rust原生交易引擎"},{"full_name":"wilsonfreitas/awesome-quant","description":"A curated list of insanely awesome libraries, packages and resources for Quants (Quantitative Finance)","language":"Python","stars":30674,"forks":4373,"created_at":"2015-09-30","url":"https://github.com/wilsonfreitas/awesome-quant","topics":["algorithmic-trading-engine","algorithmic-trading-library","algotrading","arbitrage-bot","awesome"],"desc_zh":"Quants （定量金融）精心策划的超棒库、包和资源列表"},{"full_name":"mementum/backtrader","description":"Python Backtesting library for trading strategies","language":"Python","stars":23752,"forks":5328,"created_at":"2015-01-10","url":"https://github.com/mementum/backtrader","topics":["backtesting","metaclass","python","trading"],"desc_zh":"交易策略的Python回溯测试库"},{"full_name":"QuantConnect/Lean","description":"Lean Algorithmic Trading Engine by QuantConnect (Python, C#)","language":"C#","stars":22558,"forks":5429,"created_at":"2014-11-28","url":"https://github.com/QuantConnect/Lean","topics":["algorithm","algorithmic-trading-engine","c-sharp","finance","forex"],"desc_zh":"QuantConnect的精益算法交易引擎（ Python ， C # ）"},{"full_name":"stefan-jansen/machine-learning-for-trading","description":"Code for Machine Learning for Trading, 3rd edition — from data sourcing to live execution.","language":"Jupyter Notebook","stars":21846,"forks":5792,"created_at":"2018-05-09","url":"https://github.com/stefan-jansen/machine-learning-for-trading","topics":["algorithmic-trading","artificial-intelligence","backtesting","data-science","deep-learning"],"desc_zh":"交易机器学习代码，第3版—从数据源到实时执行。"},{"full_name":"hummingbot/hummingbot","description":"Open source software that helps you create and deploy high-frequency crypto trading bots","language":"Python","stars":21235,"forks":5150,"created_at":"2019-04-02","url":"https://github.com/hummingbot/hummingbot","topics":["ai-agents","algotrading","arbitrage","backtesting","binance"],"desc_zh":"帮助您创建和部署高频加密交易机器人的开源软件"},{"full_name":"bbfamily/abu","description":"阿布量化交易系统(股票，期权，期货，比特币，机器学习) 基于python的开源量化交易，量化投资架构","language":"Python","stars":19200,"forks":4787,"created_at":"2016-09-19","url":"https://github.com/bbfamily/abu","topics":["algorithmic-trading","bitcoin","machine-learning","matplotlib","numpy"],"desc_zh":"阿布量化交易系统(蟒股票蛇期权期货，蟒蛇比特币机器学习，基于蟒蛇的开源量化交易，量化投资架构"},{"full_name":"UFund-Me/Qbot","description":"[🔥updating ...] AI 自动量化交易机器人(完全本地部署) AI-powered Quantitative Investment Research Platform. 📃 online docs: https://ufund-me.github.io/Qbot   ✨ :news: qbot-mini: https://github.com/Charmve/iQuant","language":"Jupyter Notebook","stars":18818,"forks":2620,"created_at":"2022-11-23","url":"https://github.com/UFund-Me/Qbot","topics":["backtest","bitcoin","blockchain","deep-learning","fintech"],"desc_zh":"[🔥更新中...] AI自动量化交易机器人驱完全本地部署动的AI定量投资研究📃平台。在线文档✨： https://ufund-me.github.io/Qbot ：新闻： qbot-mini ： https://github.com/Charmve/iQuant"},{"full_name":"questdb/questdb","description":"QuestDB is a high performance, open-source, time-series database","language":"Java","stars":17537,"forks":1701,"created_at":"2014-04-28","url":"https://github.com/questdb/questdb","topics":["apache-arrow","capital-markets","database","historian","kdb"],"desc_zh":"QuestDB是一个高性能、开源、时间序列数据库"},{"full_name":"paperswithbacktest/awesome-systematic-trading","description":"A curated list of awesome libraries, packages, strategies, books, blogs, tutorials for systematic trading.","language":"Python","stars":15402,"forks":1870,"created_at":"2022-02-05","url":"https://github.com/paperswithbacktest/awesome-systematic-trading","topics":["algorithmic-trading","algotrading","alpha","arbitrage-bot","awesome"],"desc_zh":"精心策划的系统交易库、包、策略、书籍、博客和教程列表。"},{"full_name":"myhhub/stock","description":"stock股票.获取股票数据,计算股票指标,筹码分布,识别股票形态,综合选股,选股策略,股票验证回测,股票自动交易,支持PC及移动设备。","language":"Python","stars":15228,"forks":3115,"created_at":"2023-03-21","url":"https://github.com/myhhub/stock","topics":["backtest","backtesting","broker-trading-platform","cyq","distribution-of-chips"],"desc_zh":"股票股票。获取股票数据计算股票指标,筹码分布,,识别股票形态,综合选股,选股策略,股票验证回测,股票自动交易,支持 PC及移动设备。"},{"full_name":"OpenByteInc/QuantDinger","description":"The most complete open-source, self-hosted Agentic Trading OS—AI research, Python strategies, factor discovery, backtesting, optimization, paper/live multi-asset execution, risk controls, monitoring, MCP, and multi-tenant SaaS in one auditable stack.","language":"Python","stars":13809,"forks":2817,"created_at":"2025-12-28","url":"https://github.com/OpenByteInc/QuantDinger","topics":["agentic-ai","ai-agents","backtesting","crypto","finance"],"desc_zh":"最完整的开源、自托管Agentic Trading OS-AI研究、Python策略、因子发现、回溯测试、优化、纸张/实时多资产执行、风险控制、监控、MCP和多租户SaaS在一个可审计的堆栈中。"},{"full_name":"NoFxAiOS/nofx","description":"Your AI trading terminal assistant for US stocks, commodities, forex, and crypto.","language":"Go","stars":13309,"forks":3074,"created_at":"2025-10-28","url":"https://github.com/NoFxAiOS/nofx","topics":["agentictrading","ai","ai-trading","arbitrage","binance"],"desc_zh":"您的美国股票、大宗商品、外汇和加密货币的人工智能交易终端助手。"},{"full_name":"TA-Lib/ta-lib-python","description":"Python wrapper for TA-Lib (http://ta-lib.org/).","language":"Cython","stars":12416,"forks":2016,"created_at":"2012-03-23","url":"https://github.com/TA-Lib/ta-lib-python","topics":["finance","pattern-recognition","python","quantitative-finance","ta-lib"],"desc_zh":"TA-Lib的Python包装器(http://ta-lib.org/)。"},{"full_name":"simonlin1212/a-stock-data","description":"A股全栈数据工具包：行情K线·当日逐笔·研报·信号·资金面·新闻·财务·公告·打板·ETF期权·舆情·宏观利率·期货大宗(含大商所日K)·事件驱动·可转债 | 15层·87端点·34数据源·除iwencai外免Key | A-share data for AI agents: K-lines, ticks, reports, fund flow, news, financials, filings, options, macro, futures, events, convertibles | 15 layers·87 endpoints·34 sources","language":"Python","stars":11865,"forks":2157,"created_at":"2026-05-11","url":"https://github.com/simonlin1212/a-stock-data","topics":["a-share","ai-agent","ai-skill","china-stocks","claude-code"],"desc_zh":"A 股全栈数据工具包：行情 K线 · ·当日逐笔 ·研报 ·信号 · ·资金面 ·新闻 · ETF财务公告 ·打板 · ·期货大宗 (期权含大商所日K)舆情宏观利率 · ·可转债 | 15 · 87事件驱动 · 34端点数据源 · iwencai层外免 Key |人工智能代理的除A股数据： K线、滴答声、报告、资金流、新闻、财务、备案、期权、宏观、期货、事件、可兑换股票| 15层· 87个端点· 34个来源"},{"full_name":"StockSharp/StockSharp","description":"Algorithmic trading and quantitative trading open source platform to develop trading robots (stock markets, forex, crypto, bitcoins, and options).","language":"C#","stars":11124,"forks":2314,"created_at":"2014-12-08","url":"https://github.com/StockSharp/StockSharp","topics":["algorithmic-trading","algorithmic-trading-engine","backtesting","bitcoins","broker"],"desc_zh":"算法交易和定量交易开源平台，用于开发交易机器人（股票市场、外汇、加密货币、比特币和期权）。"},{"full_name":"polakowo/vectorbt","description":"The research engine that gives you an unfair advantage. Run thousands of trading ideas before others finish one.","language":"Python","stars":9868,"forks":1310,"created_at":"2017-11-14","url":"https://github.com/polakowo/vectorbt","topics":["algorithmic-trading","algorithmic-traiding","backtesting","cryptocurrency","data-science"],"desc_zh":"给你不公平优势的研究引擎。在其他人完成之前，运行数千个交易创意。"}]},"growth_7d":{"meta/astryx":4009,"anthropics/skills":248,"addyosmani/agent-skills":1660,"anthropics/claude-quickstarts":128,"google-deepmind/mujoco":125,"we-promise/sure":3462,"homeassistant-ai/ha-mcp":855,"vercel-labs/agent-browser":818,"sherlock-project/sherlock":398,"tokio-rs/topcoat":128,"ranxianglei/billion-context":190,"mattpocock/skills":274,"ZhuLinsen/daily_stock_analysis":1601,"GoogleChrome/modern-web-guidance-src":5689,"shadcn/improve":256,"openai/codex-security":1523,"TheAlgorithms/Java":115,"nvm-sh/nvm":40,"pookjw/HermesEnabler":100,"QwenLM/qwen-code":603,"ashhart/TensorFold":262,"nodejs/node":43,"CopilotKit/OpenBot":202,"Alishahryar1/free-claude-code":219,"ggml-org/llama.cpp":143,"alibaba/open-code-review":2526,"backnotprop/plannotator":2292,"louislam/uptime-kuma":452,"block/buzz":56,"tradermonty/claude-trading-skills":2347,"tailscale/tailcat":9560,"Likely7/Veyra-NRVideo":785,"ChromeDevTools/chrome-devtools-mcp":2352,"dream-num/univer":3593,"ag-ui-protocol/ag-ui":2035,"JuliusBrussee/caveman":94,"Tencent/LoopForge":904,"martin-olivier/airgorah":145,"google-labs-code/stitch-skills":522,"ggml-org/ggml":84,"elementalsouls/Claude-BugHunter":1261,"NVIDIA/SkillEvaluator":1276,"getarcaneapp/arcane":169,"DeanChensj/jiangshan-map":485,"mvanhorn/last30days-skill":208,"google-research/paper-orchestra":270,"sveltejs/svelte":100,"kajisho5/ffmpeg-skill":412}};
+
+const $=(s,e=document)=>e.querySelector(s), $$=(s,e=document)=>[...e.querySelectorAll(s)];
+const COLORS={Python:"#3572A5",JavaScript:"#f1e05a",TypeScript:"#3178c6",HTML:"#e34c26",Rust:"#dea584",Go:"#00ADD8","C++":"#f34b7d","C":"#888","Jupyter Notebook":"#DA5B0B",Java:"#b07219",Shell:"#89e051",Vue:"#41b883",Markdown:"#8b95a7",default:"#4fd8d2"};
+const fmt=n=>n==null?"—":n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,"")+"m":n>=1000?(n/1000).toFixed(1).replace(/\.0$/,"")+"k":""+n;
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const cssVar=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+let LANG="zh";
+const I18N={
+ zh:{eyebrow:"OPEN SOURCE INTELLIGENCE",heroA:"捕捉 GitHub 上的",heroB:"每一次星标跃迁",heroDesc:"左侧切换榜单与分类，右侧大屏浏览；点击任意仓库即可查看它的成长轨迹。数据联网自动刷新。",kTotal:"收录仓库",kStars:"累计星标",kRise:"今日最高飙升",kCats:"精选分类",railBoards:"趋势榜单",railCats:"精选分类",trendingDailyTitle:"星标飙升榜",trendingDailySub:"今日趋势 · period stars",trendingWeeklyTitle:"本周流行",trendingWeeklySub:"每周趋势 · period stars",topStarsTitle:"星标最高榜",topStarsSub:"全站历史 TOP",newestTitle:"最新资源",newestSub:"近 14 天新建",chartOpen:"新标签打开",today:"今日",week:"7日",repos:"个仓库",statusLive:"实时数据",statusSnap:"本地快照",statusWarn:"降级快照",updated:"数据更新",growth:n=>`本地快照已积累 ${n} 个仓库的 7 日真实增速数据`,growth0:"本地快照积累中（约 2 天后显示真实 7 日增速）",cats:{texts:"📝 文章/教程",ai:"🤖 AI/机器学习",dev:"🛠️ 开发工具",life:"☯️ 人生哲理",finance:"💰 财经金融"},tag:{learn:"学习资源",framework:"开发框架",cli:"命令行工具",ai:"AI 应用",fin:"金融量化",growth:"自我成长",tool:"效率工具",game:"游戏/引擎",infra:"网络/服务",design:"设计资源",data:"数据/数据库",oss:"开源项目"}},
+ en:{eyebrow:"OPEN SOURCE INTELLIGENCE",heroA:"Catch every",heroB:"star leap on GitHub",heroDesc:"Switch boards and topics on the left, browse big on the right; click any repo to reveal its growth curve. Auto-refreshes when online.",kTotal:"Repos tracked",kStars:"Total stars",kRise:"Top daily rise",kCats:"Curated topics",railBoards:"TRENDING BOARDS",railCats:"CURATED TOPICS",trendingDailyTitle:"Star surge",trendingDailySub:"Trending today · period stars",trendingWeeklyTitle:"Weekly popular",trendingWeeklySub:"This week · period stars",topStarsTitle:"Most starred",topStarsSub:"All-time TOP",newestTitle:"Fresh finds",newestSub:"Created in 14 days",chartOpen:"Open in new tab",today:"today",week:"7d",repos:"repos",statusLive:"Live data",statusSnap:"Local snapshot",statusWarn:"Fallback",updated:"Updated",growth:n=>`Snapshot has real 7-day growth for ${n} repos`,growth0:"Building snapshot (real 7-day growth visible in ~2 days)",cats:{texts:"📝 Articles/Tutorials",ai:"🤖 AI/ML",dev:"🛠️ Dev tools",life:"☯️ Life philosophy",finance:"💰 Finance"},tag:{learn:"Learning",framework:"Framework",cli:"CLI tool",ai:"AI app",fin:"FinTech",growth:"Growth",tool:"Utility",game:"Game/Engine",infra:"Infra",design:"Design",data:"Data/DB",oss:"OSS"}}
+};
+const t=()=>I18N[LANG];
+function toggleLang(){LANG=LANG==="zh"?"en":"zh";try{localStorage.setItem("gh_radar_lang",LANG)}catch(e){}$("#langBtn").textContent=LANG==="zh"?"🌐 中文":"🌐 English";applyI18n();renderAll();renderRail()}
+function applyI18n(){const T=t();$("#eyebrow").textContent=T.eyebrow;$("#heroTitle").innerHTML=`${esc(T.heroA)}<br><em>${esc(T.heroB)}</em>`;$("#heroDesc").textContent=T.heroDesc;$$("[data-i]").forEach(el=>{const v=T[el.dataset.i];if(typeof v==="string")el.textContent=v});updateStatus()}
+
+let THEME="dark";
+function setTheme(mode,save=true){
+  THEME=mode;document.documentElement.setAttribute("data-theme",mode);
+  const meta=document.querySelector('meta[name="theme-color"]');
+  if(meta)meta.setAttribute("content",mode==="dark"?"#0a0f1a":"#e9eef6");
+  const dot=document.querySelector(".dotmark");if(dot)dot.setAttribute("fill",cssVar("--accent"));
+  $("#themeBtn").textContent=mode==="dark"?"◐ 暗色":"◑ 亮色";
+  if(save)try{localStorage.setItem("gh_radar_theme",mode)}catch(e){}
+}
+function toggleTheme(){setTheme(THEME==="dark"?"light":"dark")}
+
+const TAG_RULES=[
+ [/awesome|list of|collection|curated|cheatsheet|interview|教程|列表|课程|curriculum|books|tutorial/i,"learn"],
+ [/framework|library|框架/i,"framework"],[/cli|command.?line|终端/i,"cli"],
+ [/agent|llm|gpt|ai |ai\/|machine.?learning|neural|model|人工智能|模型/i,"ai"],
+ [/quant|trading|finance|stock|invest|crypto|交易|金融|量化/i,"fin"],
+ [/mindful|psycholog|philosoph|self.?improv|habit|心理|哲学|正念/i,"growth"],
+ [/tool|tools|utility|工具/i,"tool"],[/game|engine|游戏|引擎/i,"game"],
+ [/server|self.?hosted|proxy|network|服务器|自托管|代理/i,"infra"],
+ [/design|ui |css|diagram|设计|图表/i,"design"],[/data|database|数据/i,"data"]];
+function tagKey(r){const txt=(r.description||"")+" "+(r.topics||[]).join(" ");for(const[re,k]of TAG_RULES)if(re.test(txt))return k;return"oss"}
+const tagline=r=>t().tag[tagKey(r)];
+
+/* view 定义：榜单 + 分类，统一走一套渲染 */
+const CATS=["texts","ai","dev","life","finance"];
+const CAT_META={texts:{icon:"📝",color:"var(--accent)"},ai:{icon:"🤖",color:"var(--accent-3)"},dev:{icon:"🛠️",color:"var(--accent-2)"},life:{icon:"☯️",color:"var(--green)"},finance:{icon:"💰",color:"var(--gold)"}};
+const BOARDS=[
+ {id:"trendingDaily",label:"trendingDailyTitle",sub:"trendingDailySub",icon:"⚡",color:"var(--rose)",get:()=>DATA.trending_daily||[],dk:"period_stars"},
+ {id:"trendingWeekly",label:"trendingWeeklyTitle",sub:"trendingWeeklySub",icon:"📅",color:"var(--accent-3)",get:()=>DATA.trending_weekly||[],dk:"period_stars"},
+ {id:"topStars",label:"topStarsTitle",sub:"topStarsSub",icon:"🏆",color:"var(--gold)",get:()=>DATA.top_stars||[],dk:null},
+ {id:"newest",label:"newestTitle",sub:"newestSub",icon:"🛡️",color:"var(--green)",get:()=>DATA.newest||[],dk:null}
+];
+let currentView="trendingDaily";
+function viewDef(id){
+  if(id.startsWith("cat:")){const k=id.slice(4),m=CAT_META[k]||{icon:"•",color:"var(--accent)"};
+    return{id,label:()=>t().cats[k],sub:()=>`${m.icon} ${k.toUpperCase()} · ${DATA.categories?.[k]?.length||0}`,icon:m.icon,color:m.color,get:()=>DATA.categories?.[k]||[],dk:null}}
+  const b=BOARDS.find(x=>x.id===id)||BOARDS[0];
+  return{...b,label:()=>t()[b.label],sub:()=>t()[b.sub]}
+}
+function renderRail(){const rail=$("#rail");if(!rail)return;
+  const boardHtml=`<div class="rail-group"><div class="rail-label" data-i="railBoards">趋势榜单</div>`+BOARDS.map(b=>{
+    const n=(b.get()||[]).length;return`<button class="rail-item ${currentView===b.id?"active":""}" style="--rc:${b.color}" data-view="${b.id}" aria-pressed="${currentView===b.id}"><span class="ri-ic">${b.icon}</span><span class="ri-name">${esc(t()[b.label])}</span><span class="ri-count">${n}</span></button>`}).join("")+`</div>`;
+  const catHtml=`<div class="rail-group"><div class="rail-label" data-i="railCats">精选分类</div>`+CATS.map(k=>{
+    const m=CAT_META[k],n=(DATA.categories?.[k]||[]).length;return`<button class="rail-item ${currentView==="cat:"+k?"active":""}" style="--rc:${m.color}" data-view="cat:${k}" aria-pressed="${currentView==="cat:"+k}"><span class="ri-ic">${m.icon}</span><span class="ri-name">${esc(t().cats[k])}</span><span class="ri-count">${n}</span></button>`}).join("")+`</div>`;
+  rail.innerHTML=boardHtml+catHtml;
+  rail.querySelectorAll(".rail-item").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
+}
+function setView(id){currentView=id;renderRail();renderStage();const l=$("#stageList");if(l)l.scrollTop=0}
+
+function renderCards(el,repos,dk){
+  if(!el)return;
+  if(!Array.isArray(repos)||!repos.length){el.innerHTML=`<div class="empty">—</div>`;return}
+  const frag=document.createDocumentFragment();
+  repos.forEach((r,i)=>{
+    const card=document.createElement("article");card.className="repo-card";card.tabIndex=0;card.setAttribute("role","button");
+    card.setAttribute("aria-label",`${r.full_name}, ${fmt(r.stars)} stars`);
+    const c=COLORS[r.language]||COLORS.default;
+    const lang=r.language?`<span class="rc-lang" style="--lc:${c}"><i></i>${esc(r.language)}</span>`:"";
+    const delta=(dk&&r[dk]>0)?`<span class="rc-delta">▲ +${fmt(r[dk])} ${dk==="period_stars"?t().today:t().week}</span>`:"";
+    const topics=(r.topics||[]).slice(0,2).map(x=>`<span class="rc-topic">#${esc(x)}</span>`).join("");
+    const zh=LANG==="zh"&&r.desc_zh?`<div class="rc-desc-zh">${esc(r.desc_zh)}</div>`:"";
+    card.innerHTML=`<div class="rc-rank">${String(i+1).padStart(2,"0")}</div>
+      <div class="rc-main">
+        <div class="rc-top"><a class="rc-name" href="${esc(r.url||("https://github.com/"+r.full_name))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(r.full_name)}</a><span class="rc-stars">★ ${fmt(r.stars)}</span></div>
+        <div class="rc-line2">${delta}<span class="rc-tag">${tagline(r)}</span></div>
+        ${r.description?`<div class="rc-desc-en">${esc(r.description)}</div>`:""}
+        ${zh}
+        <div class="rc-meta">${lang}${topics}</div>
+      </div>`;
+    const nameEl=card.querySelector(".rc-name");
+    if(nameEl){nameEl.addEventListener("mouseenter",()=>showHover(r.full_name,nameEl));nameEl.addEventListener("mouseleave",hideHover);nameEl.addEventListener("focus",()=>showHover(r.full_name,nameEl));nameEl.addEventListener("blur",hideHover)}
+    const go=()=>openChart(r);
+    card.addEventListener("click",go);
+    card.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}});
+    frag.appendChild(card);
+  });
+  el.replaceChildren(frag);
+}
+function renderStage(){const v=viewDef(currentView),repos=v.get()||[];
+  $("#stageTitle").textContent=v.label();
+  $("#stageSub").textContent=v.sub();
+  $("#stageCount").textContent=repos.length+" "+t().repos;
+  const ic=$("#stageIcon");ic.textContent=v.icon;ic.style.color=v.color;
+  renderCards($("#stageList"),repos,v.dk);
+}
+function renderKPIs(){
+  let total=0,sum=0;const seen=new Set();
+  ["trending_daily","trending_weekly","top_stars","newest"].forEach(k=>(DATA[k]||[]).forEach(r=>{if(!seen.has(r.full_name)){seen.add(r.full_name);total++;sum+=r.stars||0}}));
+  Object.values(DATA.categories||{}).flat().forEach(r=>{if(!seen.has(r.full_name)){seen.add(r.full_name);total++;sum+=r.stars||0}});
+  let rise=0;(DATA.trending_daily||[]).forEach(r=>{if((r.period_stars||0)>rise)rise=r.period_stars});
+  const T=t();const items=[[T.kTotal,fmt(total),""],[T.kStars,fmt(sum),""],[T.kRise,rise?"+"+fmt(rise):"—",""],[T.kCats,String(CATS.length),""]];
+  $("#kpis").innerHTML=items.map(([l,v,s])=>`<div class="kpi g"><div class="k-label">${esc(l)}</div><div class="k-val">${esc(v)}${s?`<small>${esc(s)}</small>`:""}</div></div>`).join("");
+}
+function renderAll(){renderKPIs();renderStage()}
+
+/* 趋势图：hover 仓库名悬浮预览（主）+ 键盘/新标签查看（辅） */
+const chartURL=full=>`https://api.star-history.com/svg?repos=${encodeURIComponent(full)}&type=Date`;
+const chartCache={}; // full -> "ok" | "err"
+function loadChartImg(full,body,tpl){
+  body.innerHTML=`<div class="chart-placeholder">↻ ${LANG==="zh"?"加载中…":"Loading…"}</div>`;
+  if(chartCache[full]==="err"){body.innerHTML=`<div class="chart-err">${LANG==="zh"?"图表暂不可用（可能限流）":"Chart unavailable (rate limit?)"}</div>`;return}
+  const img=new Image();img.alt=full+" star history";img.className="chart-img";
+  img.onload=()=>{chartCache[full]="ok";if(body.dataset.for!==full)return;body.innerHTML=tpl;$(".chart-frame",body)?$(".chart-frame",body).appendChild(img):body.appendChild(img)};
+  img.onerror=()=>{chartCache[full]="err";if(body.dataset.for===full)body.innerHTML=`<div class="chart-err">${LANG==="zh"?"图表暂不可用（可能限流）":"Chart unavailable"}</div>`};
+  img.src=chartURL(full);
+}
+
+let hoverTimer=null;
+function showHover(full,anchor){
+  const h=$("#hoverChart");if(!h)return;
+  clearTimeout(hoverTimer);
+  $("#hcName").textContent=full;
+  const body=$("#hcBody");body.dataset.for=full;
+  // 定位：优先显示在名字下方，空间不足则上方，水平不越界
+  const r=anchor.getBoundingClientRect(),w=430,hgt=300,gap=10;
+  let left=r.left,top=r.bottom+gap;
+  if(left+w>window.innerWidth-12)left=window.innerWidth-w-12;
+  if(left<12)left=12;
+  if(top+hgt>window.innerHeight-12)top=r.top-hgt-gap;
+  if(top<12)top=12;
+  h.style.left=left+"px";h.style.top=top+"px";
+  h.classList.add("show");h.setAttribute("aria-hidden","false");
+  if(chartCache[full]==="ok"){
+    const img=new Image();img.className="chart-img";img.alt=full+" star history";img.src=chartURL(full);
+    body.innerHTML="";body.appendChild(img);
+  }else loadChartImg(full,body,"");
+}
+function hideHover(){const h=$("#hoverChart");if(!h)return;hoverTimer=setTimeout(()=>{h.classList.remove("show");h.setAttribute("aria-hidden","true")},120)}
+function renderModalInfo(r){
+  const info=$("#modalInfo");if(!info)return;
+  const full=r.full_name,url=r.url||("https://github.com/"+full),c=COLORS[r.language]||COLORS.default;
+  const zh=LANG==="zh"&&r.desc_zh?`<div class="mi-desc-zh">${esc(r.desc_zh)}</div>`:"";
+  const en=r.description?`<div class="mi-desc-en">${esc(r.description)}</div>`:(zh?"":"<div class='mi-empty'>—</div>");
+  const lang=r.language?`<span class="s-lang" style="--lc:${c}"><i></i>${esc(r.language)}</span>`:"";
+  const forks=r.forks!=null?`<span class="s-fork">⑂ ${fmt(r.forks)}</span>`:"";
+  const topics=(r.topics||[]).slice(0,6).map(x=>`<span class="mi-topic">#${esc(x)}</span>`).join("");
+  info.innerHTML=`<div class="mi-top">
+      <span class="mi-name">${esc(full)}</span>
+      <a class="mi-link" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗ GitHub</a>
+      <span class="mi-stats"><span class="s-star">★ ${fmt(r.stars)}</span>${forks}${lang}</span>
+    </div>${zh}${en}
+    <div class="mi-tags"><span class="mi-tag">${tagline(r)}</span>${topics}</div>`;
+}
+function openChart(r){
+  const m=$("#chartModal");if(!m)return;
+  const full=typeof r==="string"?r:(r.full_name||"");
+  if(typeof r==="object")renderModalInfo(r);else{const info=$("#modalInfo");if(info)info.innerHTML=""}
+  $("#chartRepo").textContent=full;
+  $("#chartOpen").href="https://github.com/"+full;
+  const body=$("#chartBody");body.dataset.for=full;
+  loadChartImg(full,body,`<div class="chart-frame"></div>`);
+  m.classList.add("open");m.setAttribute("aria-hidden","false");document.body.style.overflow="hidden";
+}
+function closeChart(){const m=$("#chartModal");if(!m)return;m.classList.remove("open");m.setAttribute("aria-hidden","true");document.body.style.overflow=""}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeChart();const h=$("#hoverChart");if(h){h.classList.remove("show");h.setAttribute("aria-hidden","true")}}});
+window.addEventListener("scroll",()=>{const h=$("#hoverChart");if(h&&h.classList.contains("show")){h.classList.remove("show");h.setAttribute("aria-hidden","true")}},{passive:true});
+
+function updateStatus(){const st=$("#status"),txt=$("#statusText");if(!st||!txt)return;const m=st.dataset.mode;st.className="status"+(m==="warn"?" warn":"");txt.textContent=m==="live"?t().statusLive:(m==="warn"?t().statusWarn:t().statusSnap)}
+function renderMeta(){const u=(DATA.updated_at||"").replace("T"," ").slice(0,16),ue=$("#updatedAt");if(ue)ue.textContent=t().updated+": "+u;const g=DATA.growth_7d||{},n=Object.keys(g).length,gi=$("#growthInfo");if(gi)gi.textContent=n>0?t().growth(n):t().growth0;$("#status").dataset.mode="snap";updateStatus()}
+
+const LIVE=/^https?:$/.test(location.protocol)&&!/^(127\.|localhost|0\.0\.0\.0)/.test(location.hostname||"");
+async function ghSearch(q,n=15){const r=await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(q)}&sort=stars&order=desc&per_page=${n}`,{headers:{Accept:"application/vnd.github+json"}});if(!r.ok)throw new Error("gh "+r.status);const j=await r.json();return(j.items||[]).map(it=>({full_name:it.full_name,description:it.description||"",language:it.language||"",stars:it.stargazers_count||0,forks:it.forks_count||0,url:it.html_url,desc_zh:"",topics:(it.topics||[]).slice(0,5)}))}
+const mergeRepos=(a,b)=>{const s=new Set(a.map(r=>r.full_name));return[...a,...b.filter(r=>!s.has(r.full_name))].sort((x,y)=>y.stars-x.stars).slice(0,25)};
+function toast(msg){const b=$("#liveBar");b.textContent=msg;b.style.display="block"}
+async function liveRefresh(manual=false){const btn=$("#refreshBtn");if(btn)btn.disabled=true;
+  try{toast(LANG==="zh"?"⚡ 正在从 GitHub 实时刷新…":"⚡ Refreshing from GitHub…");
+    const since=new Date(Date.now()-14*864e5).toISOString().slice(0,10);
+    const[top,newest,texts,ai,dev,life,fin]=await Promise.all([
+      ghSearch("stars:>10000",25),ghSearch(`created:>${since} stars:>50`,25),
+      ghSearch("topic:awesome stars:>500",15).then(a=>ghSearch("topic:tutorial stars:>500",15).then(b=>mergeRepos(a,b))),
+      ghSearch("topic:ai stars:>500",15).then(a=>ghSearch("topic:llm stars:>500",15).then(b=>mergeRepos(a,b))),
+      ghSearch("topic:developer-tools stars:>500",15).then(a=>ghSearch("topic:cli stars:>500",15).then(b=>mergeRepos(a,b))),
+      ghSearch("topic:psychology stars:>500",15).then(a=>ghSearch("topic:self-improvement stars:>500",15).then(b=>mergeRepos(a,b))),
+      ghSearch("topic:quantitative-finance stars:>500",15).then(a=>ghSearch("topic:trading stars:>500",15).then(b=>mergeRepos(a,b)))]);
+    DATA.top_stars=top;DATA.newest=newest;DATA.categories={texts,ai,dev,life,finance:fin};DATA.updated_at=new Date().toISOString();
+    renderAll();renderRail();renderMeta();$("#status").dataset.mode="live";updateStatus();
+    toast((LANG==="zh"?"⚡ 已实时刷新榜单与分类":"⚡ Refreshed boards & categories")+" · "+new Date().toLocaleTimeString());
+    try{localStorage.setItem("gh_radar_last_live",Date.now())}catch(e){}
+  }catch(e){$("#status").dataset.mode="warn";updateStatus();toast(LANG==="zh"?"⚡ 实时刷新未成功（GitHub 限额？），当前显示本地快照":"⚡ Live refresh failed (rate limit?), showing local snapshot")}
+  finally{if(btn)btn.disabled=false;setTimeout(()=>{const b=$("#liveBar");if(b)b.style.display="none"},manual?5000:4000)}}
+
+function init(){
+  try{LANG=localStorage.getItem("gh_radar_lang")||"zh"}catch(e){}
+  $("#langBtn").textContent=LANG==="zh"?"🌐 中文":"🌐 English";
+  let saved=null;try{saved=localStorage.getItem("gh_radar_theme")}catch(e){}
+  const systemDark=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;
+  setTheme(saved||(systemDark?"dark":"light"),false);
+  applyI18n();renderMeta();renderRail();renderAll();
+  if(LIVE){let last=0;try{last=+localStorage.getItem("gh_radar_last_live")||0}catch(e){}
+    if(Date.now()-last>3*3600*1000)setTimeout(()=>liveRefresh(false),1200);else{$("#status").dataset.mode="snap";updateStatus()}}
+}
+document.addEventListener("DOMContentLoaded",init);
+</script>
+</body>
+</html>
