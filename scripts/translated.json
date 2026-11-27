@@ -97,6 +97,7 @@
  "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.": "使用 Kimi、GLM、MiniMax、DeepSeek、gpt-oss、Qwen、Gemma 和其他模型快速上手。",
  "Give your AI agent eyes to see the entire internet. Read & search Twitter, Reddit, YouTube, GitHub, Bilibili, XiaoHongShu — one CLI, zero API fees.": "让您的 AI 代理拥有“眼睛”，能够“看到”整个互联网。阅读和搜索 Twitter、Reddit、YouTube、GitHub、哔哩哔哩、小红书——一个 CLI，零 API 费用。",
  "Goal: an Xbox Series title (your own dump) at a stable 30+ fps on PC without ray tracing, then higher. Porting, not emulating: renderer patches + ahead-of-time shaders, RX 7900 XTX first. No game files.": "目标：在没有光线追踪的情况下，在 PC 上以稳定的 30+ fps 制作 Xbox 系列游戏（您自己的转储），然后更高。移植，而不是模拟：渲染器补丁 + 提前着色器，首先是 RX 7900 XTX。没有游戏文件。",
+ "Goal: an Xbox Series title (your own dump) on PC as the Series X version at 4K with ray tracing, picture matching the Xbox first (textures, lighting), then 30+ fps. Porting, not emulating. RX 7900 XTX first. No game files.": "目标：在PC上以Series X版本运行一款Xbox Series游戏（您自己的转储），4K分辨率，支持光线追踪，画面首先与Xbox匹配（纹理、光照），然后达到30+帧/秒。移植，而非模拟。先用RX 7900 XTX。没有游戏文件。",
  "Headless 3D and VFX engine for agents. Research preview.": "面向代理的无头 3D 和 VFX 引擎。研究预览。",
  "Humanoid whole-body motion tracking with one differentiable world model.": "使用一个可微分世界模型进行人形机器人全身动作跟踪。",
  "Hunt down social media accounts by username across social networks": "跨社交网络按用户名搜索社交媒体账号",
